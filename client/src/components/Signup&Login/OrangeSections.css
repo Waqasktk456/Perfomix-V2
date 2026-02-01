@@ -1,0 +1,46 @@
+.orange-section {
+    padding: 100px 100px; 
+    display: flex;
+    flex-direction: column;
+    color: white;
+    font-family: 'Oleo Script';
+    text-align: left; /* Aligns content to the left */
+   background-color: #003366;
+}
+
+.circle-container {
+    background-color: #FDDCAB; 
+    width: 60px; /* Set equal width and height with units */
+    height: 60px; 
+    border-radius: 50%; /* Ensures the shape is circular */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+}
+
+
+.icon-image {
+    width: 30px;
+    height: 30px;
+    
+}
+
+.orange-text {
+    
+    font-size: 30px;
+    font-weight: 500;
+    margin: 20px 0px 20px 10px;
+    word-wrap: break-word;
+    max-width: 60%;
+   
+}
+
+.image-container img {
+    max-width: 100%; /* Ensure responsiveness */
+    height: auto; /* Maintain aspect ratio */
+    margin-left: 10%;
+   
+   
+    
+}

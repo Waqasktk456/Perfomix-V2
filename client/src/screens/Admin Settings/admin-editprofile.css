@@ -1,0 +1,125 @@
+.edit-profile {
+    padding: 20px;
+    font-family: Arial, sans-serif;
+  }
+  
+  .breadcrumb {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 10px;
+  }
+  
+ 
+  
+  /* Profile Picture Section */
+  .profile-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .profile-pic {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  
+  .profile-actions {
+    display: flex;
+    gap: 10px;
+  }
+  
+  /* Buttons for Picture */
+  .btn.change-pic {
+    background-color: #002856;
+    color: white;
+  }
+  
+  .btn.delete-pic {
+    background-color: transparent; /* No background */
+    color: #e63946; /* Red text */
+    border: 1px solid #e63946; /* Red border */
+  }
+  
+  /* Section Titles */
+/* Section Titles */
+.section-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin: 20px 0 10px;
+  color: #002856;
+  text-align: left; /* Ensure it aligns to the left */
+}
+
+  
+  /* Layout for Rows */
+  .form-section {
+    margin-bottom: 20px;
+  }
+  
+  .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  /* Each input field takes half width (2 per row) */
+  .input-group {
+    flex: 1;
+    min-width: 250px;
+  }
+  
+  /* Label Styling */
+  .input-label {
+    display: block;
+    font-size: var(--font-size-sm) ;
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-bold);
+    color: var(--label-color);
+    margin-bottom: 5px;
+   
+  }
+  
+  /* Input & Select Styling */
+  .input-field {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  /* Buttons */
+  .button-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+   
+    padding-bottom: 70px; /* Ensure spacing */
+  }
+  
+  
+  .btn {
+   
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+  }
+  
+ 
+  .btncancel {
+    background-color: #002856;
+    color: white;
+  }
+  
+  .update-btn {
+    background-color: transparent; /* No background */
+    color: #e63946; /* Red text */
+    border: 1px solid #e63946; /* Red border */
+  }
+  
+
+
+  

@@ -1,0 +1,223 @@
+/* src/screens/PerformanceMatrix/CreateMatrix.css */
+
+/* Main Container - Full Width layout */
+.create-matrix-container {
+  padding: 30px 40px;
+  background: #fff;
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* Form Section */
+.matrix-form {
+  background-color: #ffffff;
+  padding: 0;
+  margin-bottom: 0;
+}
+
+.matrix-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.025em;
+}
+
+.matrix-subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+  max-width: 450px;
+}
+
+.matrix-top-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 30px;
+  margin-bottom: 20px;
+}
+
+.matrix-name-wrapper {
+  flex: 1;
+}
+
+.how-it-works-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px 20px;
+  width: 400px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.how-it-works-card h4 {
+  margin: 0 0 16px 0;
+  color: #1e293b;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-icon {
+  color: #64748b;
+  font-size: 16px;
+  margin-top: 2px;
+}
+
+.info-text {
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Weightage Display (Simple) */
+.weightage-display {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Table Styles */
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.matrix-table th {
+  background-color: #f8f9fa;
+  color: #003366;
+  font-weight: 600;
+  padding: 12px 16px;
+  border-bottom: 2px solid #e9ecef;
+  text-align: left;
+}
+
+.matrix-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+  color: #212529;
+}
+
+.matrix-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* Buttons */
+.add-parameter-btn {
+  background-color: #003366;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  transition: background-color 0.2s;
+  margin-right: 10px;
+}
+
+.add-parameter-btn:hover {
+  background-color: #002244;
+}
+
+.save-btn {
+  padding: 10px 24px;
+  background-color: #4CC275;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.save-btn:hover {
+  opacity: 0.9;
+}
+
+.save-btn:disabled {
+  background-color: #6E777C;
+  cursor: not-allowed;
+}
+
+/* Icons */
+.organization-icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.organization-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.organization-edit-icon {
+  filter: hue-rotate(210deg) brightness(1.2);
+}
+
+.organization-delete-icon {
+  filter: grayscale(1) brightness(0.7);
+}
+
+.organization-icon-button:hover .organization-edit-icon {
+  filter: hue-rotate(210deg) brightness(0.9);
+}
+
+.organization-icon-button:hover .organization-delete-icon {
+  filter: grayscale(0) brightness(0.9) hue-rotate(340deg) saturate(3);
+}
+
+
+/* Empty State */
+.empty-matrix-state {
+  text-align: center;
+  padding: 20px;
+  margin-top: 10px;
+  border: 1px dashed #e5e7eb;
+  border-radius: 12px;
+}
+
+.empty-message {
+  font-size: 18px;
+  color: #888;
+  margin-top: 16px;
+  margin-bottom: 24px;
+}
+
+/* Layout */
+.button-group {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: none;
+  display: flex;
+  justify-content: flex-end;
+}

@@ -1,0 +1,177 @@
+@import "../../styles/theme.css";
+
+/* Container */
+.org-container {
+    width: 100%;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    height: 100%;
+    overflow-y: auto;
+}
+
+/* Full screen mode styles */
+.org-container.full-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #ffffff;
+    z-index: 1000;
+    padding: 3rem;
+}
+
+.org-header h1 {
+    margin: 0;
+}
+
+.org-subtext {
+    margin: 0;
+    margin-left: 7%;
+    margin-bottom: 5%;
+    margin-top: 1%;
+}
+
+/* Form Layout */
+.org-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.org-header {
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    color: var(--primary-color);
+    font-size: var(--font-size-lg) ;
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-bold);
+}
+.org-subtext {
+    text-align: center;
+    color: var(--subtext-color);
+    font-size: var(--font-size-md) ;
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-bold);
+}
+
+/* Rows */
+.org-row {
+    display: flex;
+    gap: 20px;
+}
+
+/* Fields */
+.org-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Labels */
+.org-label {
+    font-size: var(--font-size-xs) ;
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: 5px;
+    color: var(--label-color);
+}
+
+/* Inputs */
+.org-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+/* Container for Upload Section */
+.org-upload-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Upload Title */
+.org-upload-title {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-semibold);
+    color: var(--label-color);
+}
+
+/* Upload Label (Clickable Box) */
+.org-upload-label {
+    width: 350px;
+    height: 200px;
+    border: 1px dashed var(--upload-border-color);
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Upload Icon */
+.org-upload-icon {
+    width: 32px;
+    height: 32px;
+}
+
+/* Optional text under icon */
+.org-upload-text {
+    font-size: 12px;
+    margin-top: 8px;
+    color: var(--subtext-color);
+}
+
+/* Preview image fills the entire box */
+.org-upload-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 5px;
+}
+
+/* Button Section */
+.org-button-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+/* Buttons */
+.org-cancel,
+.org-save {
+    padding: 10px 16px;
+    font-size: 14px;
+    font-size: var(--font-size-xs) ;
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-semibold);
+    border-radius: 5px;
+    cursor: pointer;
+    border: none;
+}
+
+.org-cancel {
+    background-color: white;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+
+.org-save {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.org-upload-preview {
+    max-width: 80%;
+    max-height: 80%;
+    object-fit: contain;
+    border-radius: 5px;
+}
+

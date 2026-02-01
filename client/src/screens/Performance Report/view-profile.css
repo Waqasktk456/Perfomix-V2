@@ -1,0 +1,48 @@
+.unique-profile-card {
+  text-align: center;
+}
+
+.unique-profile-pic {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.unique-profile-name {
+  margin: 10px 0;
+  font-size: 22px;
+  color: var(--primary-color);
+  text-align: center;
+}
+
+.unique-profile-details {
+  margin-top: 10px;
+}
+
+/* First Role - Full D1D1D1 */
+.unique-profile-primary {
+  background: #D1D1D1;
+  padding: 10px;
+  margin: 5px auto;
+  font-weight: bold;
+  border-radius: 5px;
+  width: 250px;
+}
+
+/* Other Roles - D1D1D1 with 20% opacity */
+.unique-profile-secondary {
+  background: rgba(209, 209, 209, 0.2);
+  padding: 10px;
+  margin: 5px auto;
+  font-weight: bold;
+  border-radius: 5px;
+  width: 250px;
+}
+
+.unique-profile-email {
+  font-size: 14px;
+  margin-top: 10px;
+  color: #003366;
+  font-weight: bold;
+} 

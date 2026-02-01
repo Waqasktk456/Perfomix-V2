@@ -1,0 +1,143 @@
+.profile-settings-card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(44, 62, 80, 0.08);
+  padding: 40px 48px 32px 48px;
+  min-width: 520px;
+  max-width: 700px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-settings-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: #23223a;
+}
+
+.profile-settings-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.profile-settings-avatar {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.10);
+  margin-bottom: 16px;
+}
+
+.profile-settings-avatar-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.profile-settings-form {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.profile-settings-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.profile-settings-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+
+.profile-settings-field label {
+  font-size: 0.98rem;
+  color: #23223a;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.profile-settings-field input,
+.profile-settings-field select,
+.profile-settings-field textarea {
+  padding: 10px 14px;
+  border-radius: 7px;
+  border: 1px solid #d1d5db;
+  font-size: 1rem;
+  background: #f8fafc;
+  color: #23223a;
+  outline: none;
+  transition: border 0.2s;
+  width: 100%;
+}
+
+.profile-settings-field input:disabled,
+.profile-settings-field select:disabled,
+.profile-settings-field textarea:disabled {
+  background: #f3f4f8;
+  color: #b0b0b0;
+}
+
+.profile-settings-field input:focus,
+.profile-settings-field select:focus,
+.profile-settings-field textarea:focus {
+  border-color: #23223a;
+}
+
+.profile-settings-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 1em;
+}
+
+.profile-settings-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.profile-settings-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.profile-settings-btn {
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #23223a;
+  font-weight: 500;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-settings-btn:hover {
+  background: #f3f4f8;
+}
+
+.profile-settings-btn.primary {
+  background: #23223a;
+  color: #fff;
+  border: none;
+}
+
+.profile-settings-btn.primary:hover {
+  background: #1a1a2e;
+}
+
+.profile-settings-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+} 

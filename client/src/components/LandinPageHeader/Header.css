@@ -1,0 +1,66 @@
+.custom-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  
+    background-color: white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.custom-logo {
+    display: flex;
+    align-items: center;
+}
+
+.custom-logo-img {
+    height: 80px;
+    width: auto;
+}
+
+.custom-roles {
+    display: flex;
+    gap: 8px;
+}
+
+.custom-role-btn {
+    padding: 8px 16px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: white;
+}
+
+.admin-btn {
+    background-color: var(--primary-color); 
+}
+
+.manager-btn {
+    background-color: var(--lightblue-color);
+}
+
+.staff-btn {
+    background-color:var(--sky-color);
+}
+
+.admin-btn:hover {
+    background-color: #082245;
+}
+
+.manager-btn:hover {
+    background-color: #003b80;
+}
+
+.staff-btn:hover {
+    background-color: #008dc8;
+}

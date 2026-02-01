@@ -1,0 +1,112 @@
+.profile-page {
+  width: 100%;
+  margin: auto;
+  padding: 20px;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.edit-btn {
+  background-color: #002856;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.profile-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 70px;
+}
+
+.profile-pic img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 2px solid #002856;
+}
+
+.details {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.section {
+  width: 100%;
+}
+
+h3 {
+  color: #002856;
+  margin-bottom: 10px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+}
+
+.table tr:nth-child(odd) td {
+  background-color: #D1D1D1;
+}
+
+.table tr:nth-child(even) td {
+  background-color: rgba(209, 209, 209, 0.15);
+}
+
+.table td:first-child {
+  font-weight: bold;
+  color: #002856;
+  width: 40%;
+}
+
+input[readonly], input[disabled], select[disabled] {
+  background: #f5f5f5;
+  color: #888;
+}
+
+input, select {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 15px;
+}
+
+.button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-bottom: 70px;
+}
+
+.btn {
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 10px 15px;
+  font-size: 14px;
+}
+
+.btn.cancel {
+  background-color: #e0e0e0;
+  color: #002856;
+}
+
+.btn.update {
+  background-color: #002856;
+  color: white;
+} 

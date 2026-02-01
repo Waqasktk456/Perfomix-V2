@@ -1,0 +1,90 @@
+/* View Details Button */
+.organization-view-details-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: white;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  padding: 8px 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.organization-view-details-btn:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.organization-view-details-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Table Styling */
+.organization-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.organization-table thead th {
+  text-align: center;
+  padding: 10px;
+  color: var(--primary-color);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.organization-table tbody tr {
+  height: 48px;
+  transition: background-color 0.3s ease;
+}
+
+.organization-table tbody tr:hover {
+  background-color: var(--selected-text);
+}
+
+.organization-table tbody tr.selected-row {
+  background-color: var(--selected-text);
+  border-left: 4px solid var(--primary-color);
+}
+
+.organization-table tbody td {
+  padding: 10px;
+  border-bottom: 1px solid var(--data-text);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-normal);
+  white-space: nowrap;
+}
+
+.organization-icon-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 5px;
+  cursor: pointer;
+}
+
+/* Email Link */
+.organization-email {
+  color: var(--link-color);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-normal);
+}
+
+.organization-email:hover {
+  text-decoration: underline;
+}
+
+/* Filter icon */
+.filter-icon {
+  font-size: 0.75rem;
+  margin-left: 4px;
+  vertical-align: middle;
+}

@@ -1,0 +1,233 @@
+@import "../../styles/theme.css";
+.notification-container {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  
+  max-width: 1200px;
+  
+}
+
+/* Header Section */
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #f1f1f1;
+  padding-bottom: 5px;
+}
+
+.tabs {
+  display: flex;
+  gap: 15px;
+  color: var(--subtext-color);
+    font-size: var(--font-size-md) ;
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-normal);
+  cursor: pointer;
+}
+
+.tabs span.active {
+  color: var(--notification-active);
+    font-size: var(--font-size-md) ;
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-normal);
+  border-bottom: 2px solid var(--notification-active);
+}
+
+.compose-btn {
+  background: var(--primary-color);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+}
+
+
+.category-title {
+  margin: 20px 0 10px;
+  color: var(--notification-color);
+  font-size: var(--font-size-md) ;
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-normal);
+}
+
+.notification-card {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  transition: 0.3s;
+  margin-bottom: 10px;
+  
+ 
+  background: white; 
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); 
+}
+
+.notification-card:hover {
+  background: #eaf3ff;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 15px;
+}
+
+.notification-content {
+  flex-grow: 1;
+}
+
+.message {
+  font-size: var(--font-size-sm) ;
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-normal);
+  margin: 0;
+  color: var(--name-color);
+}
+
+.timestamp {
+  font-size: var(--font-size-xs) ;
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-normal);
+  color: var(--notification-color);
+}
+
+
+.options {
+  position: relative;
+
+}
+
+
+.action-icon {
+  width: 13px;
+  height: 13px;
+  margin-right: 6px;
+  vertical-align: middle;
+  
+}
+
+
+.options:hover .dropdown-menu {
+  display: block;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  background: white;
+  border-radius: 5px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  width: 100px;
+  text-align: left;
+}
+
+.dropdown-menu span {
+  display: block;
+  padding: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dropdown-menu span.delete {
+  color: var(--red-color);
+
+  
+}
+.dropdown-menu span.view {
+  color: var(--notification-color);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center; 
+  align-items: center; 
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+
+  width: 400px;
+  border-radius: 8px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+  position: relative;
+
+}
+h2 {
+  color: var(--primary-color);
+  font-size: 20px;
+  text-align: left; 
+  width: 100%; 
+  margin: 10% 0 5% 0; 
+  line-height: 1.5; 
+}
+
+p {
+  color: var(--modal-color);
+  text-align: left; 
+  margin: 5% 0; 
+  line-height: 1.6; 
+}
+
+
+.close-btn {
+  position: absolute;
+  top: 8px; 
+  right: 8px; 
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #333; 
+  font-weight: bold;
+  padding: 5px; 
+  line-height: 1;
+}
+
+.close-btn:hover {
+  color: #000; 
+}
+
+
+
+
+
+.modal-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.cancel-btn {
+  background: white;
+  border: 1px solid var(--primary-color);
+  /* padding: 8px 16px; */
+  cursor: pointer;
+ 
+  color: var(--cancel-color);
+  font-size: 16px;
+}
+
+.delete-btn {
+  background: var(--error-color);
+  border: none;
+  /* padding: 8px 16px; */
+  cursor: pointer;
+  
+  color: var(--white-color);
+  font-size: 16px;
+}
+

@@ -1,0 +1,74 @@
+.employee-breadcrumb {
+    text-align: left;
+    font-size: 14px;
+    color: gray;
+    margin-bottom: 20px;
+  }
+  
+  .employee-breadcrumb-active {
+    color: var(--primary-color);
+    cursor: pointer;
+  }
+  
+  .employee-profile-card {
+    text-align: center;
+  }
+  
+  .employee-profile-pic {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  
+  .employee-profile-initials {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background-color: #003366;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: bold;
+    margin: 0 auto;
+  }
+  
+  .employee-profile-name {
+    margin: 10px 0;
+    font-size: 22px;
+    color: #003366;
+    text-align: center;
+  }
+  
+  .employee-profile-details {
+    margin-top: 10px;
+  }
+  
+  /* Role styling */
+  .employee-profile-role {
+    padding: 10px;
+    margin: 5px auto;
+    font-weight: bold;
+    border-radius: 5px;
+    width: 250px;
+  }
+  
+  /* Primary role - Full D1D1D1 */
+  .employee-profile-primary {
+    background: #D1D1D1;
+  }
+  
+  /* Secondary role - D1D1D1 with 20% opacity */
+  .employee-profile-secondary {
+    background: rgba(209, 209, 209, 0.2);
+  }
+  
+  .employee-profile-email {
+    font-size: 14px;
+    margin-top: 10px;
+    color: #003366;
+    font-weight: bold;
+  }
+  

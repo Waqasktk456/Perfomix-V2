@@ -1,0 +1,20 @@
+.button {
+  background-color: #2563eb;
+  color: white;
+  font-weight: 600;
+  padding: 0.50rem; /* Adjust padding for better spacing */
+  border: none; /* Remove any default border */
+
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Adds a subtle shadow */
+  transition: background-color 0.3s ease;
+  width: 100%; /* Full width button */
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+}
+
+.button:hover {
+  background-color: #1d4ed8;
+}

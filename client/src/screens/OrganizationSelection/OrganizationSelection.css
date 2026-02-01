@@ -1,0 +1,148 @@
+.org-selection-container {
+  display: flex;
+  height: 100vh;
+  background-color: #fef7eb;
+}
+
+.org-left-side {
+  width: 50%;
+  background-color: var(--primary-color);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.org-quote {
+  font-size: 2rem;
+  font-weight: bold;
+  font-style: italic;
+  font-family: 'Oleo Script', cursive;
+  width: 45%;
+}
+
+
+
+.org-quote-container {
+  position: relative;
+  text-align: center;
+}
+
+.org-quote-circle {
+  width: 50px;
+  height: 50px;
+  background-color: #f0a23b;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: -50px;
+}
+/* 
+.org-quote {
+  font-size: 1.8rem;
+  font-weight: bold;
+  font-style: italic;
+  text-align: center;
+  max-width: 80%;
+} */
+
+.org-quote-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.org-illustration {
+  margin-top: 2rem;
+  width: 300px;
+}
+
+.org-right-side {
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: white;
+}
+
+.org-logo {
+  width: 100px;
+ 
+}
+
+.org-welcome {
+  font-size: 2rem;
+  color: #0a2540;
+  font-weight: bold;
+  text-align: center;
+  display: block; /* Ensures text-align works properly */
+}
+
+
+.org-username {
+  font-size: 1.2rem;
+  color: #0056b3;
+  font-weight: bold;
+}
+
+.org-select-title {
+  font-size: 1.4rem;
+  font-weight: bold;
+  margin-top: 1rem;
+}
+
+.org-subtitle {
+  color: #666;
+  margin-bottom: 1rem;
+  text-align: left; /* Ensures text stays aligned left */
+}
+
+.org-dropdown-container {
+  width: 80%;
+  margin-bottom: 1.5rem;
+}
+
+.org-label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.org-dropdown {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.org-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end; /* Aligns buttons to the right */
+  width: 100%; /* Ensures it takes full width */
+}
+
+
+.org-add-btn, .org-continue-btn {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.org-add-btn {
+  background-color: white;
+  color: #0a2540;
+  border: 1px solid #0a2540;
+}
+
+.org-continue-btn {
+  background-color: #0a2540;
+  color: white;
+}

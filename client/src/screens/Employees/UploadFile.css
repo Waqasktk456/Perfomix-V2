@@ -1,0 +1,138 @@
+.upload-container {
+  text-align: center;
+  padding: 20px;
+  position: relative;
+  min-width: 500px;
+  margin: 0 auto;
+}
+
+.upload-title {
+  font-size: var(--font-size-lg);
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-bold);
+color: var(--primary-color);
+text-align: center;
+}
+
+.dashed-box {
+  border: 1.35px dashed var(--cancel-color);
+  width: 100%;
+  height: 170px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.upload-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-box p {
+  font-size: var(--font-size-sm);
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-bold);
+color: var(--primary-color);
+  
+  margin-bottom: 8px;
+}
+
+.upload-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.uploaded-file-inside-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--upload-doc);
+  padding: 10px 15px;
+  width: 90%;
+  border-radius: 5px;
+  font-size: 14px;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  color: #0F4C81;
+  
+
+}
+.remove-file {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--cancel-color);
+  
+}
+
+
+.supported-format {
+  font-size: 14px;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  color: #6B7280;
+  margin-bottom: 20px;
+}
+
+.error-message {
+  color: #D32F2F;
+  background: #FDECEA;
+  padding: 10px;
+  cursor: pointer;
+  margin-top: 10px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.error-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.close-error {
+  margin-left: 10px;
+  font-weight: bold;
+}
+
+.button-container {
+  text-align: right;
+  margin-top: 20px;
+  padding-right: 0;
+  
+ 
+  
+  
+}
+
+.view-details-button {
+  border: 1px solid var(--primary-color);
+  background: white;
+  padding: 8px 14px;
+  border-radius: 5px;
+  cursor: pointer;
+
+
+  
+
+}
+
+
+.view-details-text {
+  color: var(--primary-color);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-normal);
+  
+}
+
+
+

@@ -1,0 +1,64 @@
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px; /* Reduce spacing */
+  margin-bottom: 10px;
+  width: 100%; /* Ensure it takes full width */
+  border: none; /* Remove any border */
+  background: none; /* Remove any background */
+  padding: 0; /* Remove extra padding */
+}
+
+
+.input-field label {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 5px;
+}
+.input-container {
+  width: 100%;
+  position: relative;
+  background: none; /* Ensure no background */
+  border: none; /* Remove border */
+  padding: 0; /* Remove extra padding */
+}
+
+.input-container input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc; /* Light border */
+  border-radius: 4px;
+  font-size: 16px;
+  outline: none;
+  transition: border 0.3s ease;
+  background: white; /* Ensure background is white */
+  box-shadow: none; /* Remove any shadow effect */
+}
+
+
+.input-container input:focus {
+  border-color: #007bff;
+  box-shadow: none;
+}
+
+/* Remove extra padding that made it box-like */
+.input-container {
+  display: block; /* Removes flexbox */
+}
+
+.toggle-eye-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: #555;
+}
+
+.toggle-eye-btn:hover {
+  color: #007bff;
+}

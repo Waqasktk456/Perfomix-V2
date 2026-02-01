@@ -1,0 +1,201 @@
+.lm-eval-container {
+  padding: 32px;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.lm-eval-breadcrumb {
+  margin-bottom: 20px;
+  color: #b0b0b0;
+  font-size: 16px;
+  font-family: var(--font-primary);
+}
+
+.lm-eval-breadcrumb .active {
+  color: #002f5f;
+  font-weight: 600;
+}
+
+.lm-eval-content {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.lm-eval-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.lm-eval-header h2 {
+  color: #002f5f;
+  font-size: 36px;
+  font-weight: 700;
+  font-family: var(--font-primary);
+  margin: 0;
+}
+
+.lm-eval-filters {
+  display: flex;
+  gap: 15px;
+}
+
+.lm-eval-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.lm-eval-filter-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.lm-eval-filter-select {
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #333;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-primary);
+}
+
+.lm-eval-departments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.lm-eval-department-section {
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.lm-eval-department-title {
+  color: #002f5f;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 15px 20px;
+  background: #f8f9fa;
+  margin: 0;
+  font-family: var(--font-primary);
+}
+
+.lm-eval-table-wrapper {
+  overflow-x: auto;
+}
+
+.lm-eval-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.lm-eval-table th,
+.lm-eval-table td {
+  padding: 15px 20px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  font-family: var(--font-primary);
+}
+
+.lm-eval-table th {
+  background: #f8f9fa;
+  color: #333;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.lm-eval-table td {
+  color: #333;
+  font-size: 14px;
+}
+
+.lm-eval-score-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 150px;
+}
+
+.lm-eval-score-bar {
+  height: 8px;
+  background: #002f5f;
+  border-radius: 4px;
+  min-width: 0;
+}
+
+.lm-eval-status {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-primary);
+}
+
+.lm-eval-status-completed {
+  background: #e6f4ea;
+  color: #1e7e34;
+}
+
+.lm-eval-status-pending {
+  background: #fff3e0;
+  color: #e87722;
+}
+
+.lm-eval-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.lm-eval-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  font-family: var(--font-primary);
+}
+
+.lm-eval-action-btn:hover {
+  opacity: 0.8;
+}
+
+.lm-eval-action-btn img {
+  width: 14px;
+  height: 14px;
+}
+
+.lm-eval-action-btn.evaluate {
+  background: #002f5f;
+  color: white;
+}
+
+.lm-eval-action-btn.view {
+  background: #f8f9fa;
+  color: #002f5f;
+  border: 1px solid #002f5f;
+}
+
+.lm-eval-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #666;
+  font-size: 16px;
+  font-family: var(--font-primary);
+} 

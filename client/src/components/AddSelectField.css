@@ -1,0 +1,28 @@
+.input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.input-label {
+    font-size: var(--font-size-sm) ;
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-bold);
+    color: var(--label-color);
+    margin-bottom: 5px;
+   
+}
+
+.input-field {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+}
+
+.input-field:focus {
+    border-color: var(--primary-color);
+    outline: none;
+   
+}

@@ -1,0 +1,15 @@
+/* /src/styles/global.css */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+  }
+  
+  a {
+    color: #EE680FEB;
+    text-decoration: none;
+  }
+  
+  a:hover {
+    text-decoration: underline;
+  }
+  

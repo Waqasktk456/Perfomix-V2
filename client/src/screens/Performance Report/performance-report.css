@@ -1,0 +1,207 @@
+@import "../../styles/theme.css";
+
+.performance-report-container {
+
+  margin-top: 0;
+  padding-top: 0;
+  /* Ensure no extra padding at the top */
+}
+
+.report-title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--primary-color);
+  margin-top: 0;
+  /* Remove unnecessary top margin */
+  margin-bottom: 20px;
+}
+
+
+.filter-tabs {
+  display: flex;
+  gap: 20px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.filter-tabs span {
+  cursor: pointer;
+  font-size: 16px;
+  color: #6b7280;
+}
+
+.filter-tabs .active-tab {
+  color: var(--orange-color);
+  border-bottom: 2px solid #ff6600;
+  padding-bottom: 5px;
+}
+
+.exportt-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.exportt-container {
+  position: relative;
+  display: flex;
+  /* Change from block to flex */
+  justify-content: flex-end;
+  /* Align content to the right */
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+.exportt-report-btn {
+  background-color: var(--primary-color);
+  color: var(--white-color);
+  padding: 10px 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-left: 0;
+}
+
+.export-options {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.export-options button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: #333;
+  font-size: 14px;
+}
+
+.export-options button:hover {
+  background-color: #f5f5f5;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.report-table th,
+.report-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: center;
+  background: white;
+}
+
+.report-table th {
+  background: #f1f5f9;
+  font-weight: bold;
+}
+
+.report-table tbody tr.highlighted-row {
+  background: #e0ecff !important;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(0, 63, 136, 0.08);
+}
+
+.report-table tbody tr.highlighted-row td:first-child {
+  border-left: 4px solid #003f88 !important;
+}
+
+.report-table tbody tr.highlighted-row td {
+  border-left: none !important;
+}
+
+.report-table tbody tr:hover td {
+  background: inherit;
+}
+
+.profile-pic {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.status-complete {
+  color: var(--complete-color);
+}
+
+.status-pending {
+  color: var(--pending-color);
+}
+
+.action-download {
+  color: var(--orange-color);
+  cursor: pointer;
+}
+
+.action-reminder {
+  color: var(--orange-color);
+  cursor: pointer;
+}
+
+.bottom-buttons {
+  display: flex;
+  justify-content: end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.profile-btn {
+  background-color: white;
+  color: #002856;
+  border: 1px solid #002856;
+  padding: 8px 14px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.profile-btn:hover,
+.performance-btn:hover {
+  background-color: #002856;
+  color: white;
+}
+
+.performance-btn {
+  background-color: var(--primary-color);
+  color: var(--white-color);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.initials-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #1a237e;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+}

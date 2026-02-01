@@ -1,0 +1,242 @@
+.lm-eval-form-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.lm-eval-form-breadcrumb {
+  margin-bottom: 20px;
+  color: var(--breadcrumb-color);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-primary);
+}
+
+.lm-eval-form-breadcrumb .separator {
+  margin: 0 8px;
+}
+
+.lm-eval-form-breadcrumb .active {
+  color: var(--primary-color);
+  font-weight: var(--font-weight-bold);
+}
+
+.lm-eval-form-content {
+  background: var(--white-color);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.lm-eval-form-header {
+  margin-bottom: 30px;
+}
+
+.lm-eval-form-manager-info h2 {
+  color: var(--primary-color);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-primary);
+  margin-bottom: 20px;
+}
+
+.lm-eval-form-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  background: var(--evaluation-bg);
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.lm-eval-form-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.lm-eval-form-info-item label {
+  color: var(--label-color);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.lm-eval-form-info-item span {
+  color: var(--sidebar-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.lm-eval-form-matrix {
+  background: var(--white-color);
+  border-radius: 8px;
+}
+
+.lm-eval-form-matrix h3 {
+  color: var(--primary-color);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: 20px;
+}
+
+.lm-eval-form-table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 30px;
+}
+
+.lm-eval-form-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.lm-eval-form-table th,
+.lm-eval-form-table td {
+  padding: 15px 20px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lm-eval-form-table th {
+  background: var(--evaluation-bg);
+  color: var(--sidebar-text);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+}
+
+.lm-eval-form-table td {
+  color: var(--sidebar-text);
+  font-size: var(--font-size-sm);
+}
+
+.lm-eval-form-score-input {
+  width: 80px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: var(--font-size-sm);
+  color: var(--sidebar-text);
+}
+
+.lm-eval-form-score-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.lm-eval-form-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: var(--evaluation-bg);
+  border-radius: 8px;
+}
+
+.lm-eval-form-total-score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lm-eval-form-total-score label {
+  color: var(--label-color);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.lm-eval-form-total-score span {
+  color: var(--primary-color);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.lm-eval-form-actions {
+  display: flex;
+  gap: 15px;
+}
+
+.lm-eval-form-cancel-btn,
+.lm-eval-form-submit-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.lm-eval-form-cancel-btn {
+  background: var(--white-color);
+  color: var(--sidebar-text);
+  border: 1px solid var(--border-color);
+}
+
+.lm-eval-form-submit-btn {
+  background: var(--primary-color);
+  color: var(--white-color);
+}
+
+.lm-eval-form-cancel-btn:hover,
+.lm-eval-form-submit-btn:hover {
+  opacity: 0.8;
+}
+
+.lm-eval-form-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: var(--sidebar-text);
+  font-size: var(--font-size-md);
+}
+
+.lm-eval-form-feedback-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 0 0;
+  background: #f8fbff;
+  border-radius: 4px;
+  padding: 4px 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  width: 100%;
+}
+
+.lm-eval-form-feedback-group {
+  flex: 1 1 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lm-eval-form-label {
+  font-weight: 600;
+  color: #1a237e;
+  margin-bottom: 1px;
+  font-size: 1rem;
+}
+
+.lm-eval-form-textarea {
+  width: 100%;
+  padding: 6px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: #fff;
+  resize: vertical;
+  min-height: 60px;
+  transition: border 0.2s;
+}
+
+.lm-eval-form-textarea-large {
+  min-height: 70px;
+  font-size: 1rem;
+}
+
+@media (max-width: 900px) {
+  .lm-eval-form-feedback-section {
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px 2px;
+  }
+} 

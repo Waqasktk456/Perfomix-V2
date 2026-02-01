@@ -1,0 +1,80 @@
+:root {
+
+  --secondary-color: #6c757d;
+  --white-color: #ffffff;
+  --black-color: #000;
+  --hover-bg: #e6f0ff;
+  --text-dark: #333;
+  --orange-color: #EE680F; 
+  --primary-color:#003366;
+  --gray-color:#6E777C;
+  --notification-color: #6B7280;
+  --name-color:#111928;
+  --red-color:#E02424;
+  --modal-color:#626266;
+  --cancel-color:#004661;
+  --error-color:#E51D1D;
+  --label-color:#2C3345; 
+  --breadcrumb-color:#B0BECB;
+  --complete-color:#4CC275;
+  --pending-color:#FB2B37;
+  --link-color:#297AC8;
+  --lightblue-color:#0057B4;
+  --sky-color:#20A8FF;
+  --lightblack-color:#030303;
+  --forgot-color:#006EDF;
+  --subtext-color:#888888;
+  --border-color:#D9D9D9;
+  --upload-border-color:#01395E;
+  --data-text:#B4B8BC;
+  --selected-text:#B2DFFF;
+  --bgcolor:#F5F6FA;
+  --sidebar-text:#202224;
+  --search-bar-color:#D5D5D5;
+  --role-color:#565656;
+  --up-arrow:#00B69B;
+  --down-arrow:#F93C65;
+  --performer-name:#00BFA6;
+  --role-name:#8A9EB2;
+  --evaluation-bg:#E6F6FD;
+  --layout-name:#404040;
+  --searchbar-txt:#CFC9C7;
+  --completed-color:#1B7A43;
+  --completed-bg:#DEF7EC;
+  --pending-color:#9B1C1C;
+  --empty-text:#9C9FAD;
+  --progress-bar:#1D9C53;
+  --no-bar:#E6EAEE;
+  --error-msg:#E62E2E;
+  --upload-doc:#E5E7EC;
+  --notification-active:#F68019;
+  --darkblue-gradient: linear-gradient(135deg, #003366 0%, #0057B4 100%);
+  
+  
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+}

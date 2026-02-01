@@ -1,0 +1,108 @@
+
+/* Matrix ID & Matrix Name in a single row */
+.matrix-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+/* Ensures both Matrix ID & Name take equal space */
+.matrix-row .input-group {
+  flex: 1;
+}
+
+/* Form layout */
+.form-container {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 50px;
+  width: 100%;
+}
+
+/* Image container */
+.image-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 300px;
+}
+
+.image-container img {
+  width: 100%;
+  max-width: 400px;
+}
+
+
+.input-form {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 10%;
+  max-width: 500px;
+  margin-bottom: 0;
+}
+
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-label {
+  font-size: var(--font-size-sm) ;
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-bold);
+    color: var(--label-color);
+  margin-bottom: 5px;
+}
+
+.input-field,
+.input-group select,
+.input-group textarea {
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  width: 100%;
+}
+
+/* Larger text area */
+.input-group textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Button group styling */
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 0;
+
+}
+
+.cancel-btn {
+  background-color: white;
+  color: #002f5f;
+  border: 2px solid #002f5f;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  font-family: var(--font-primary);
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.save-btn {
+  background-color: #002f5f;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  font-family: var(--font-primary);
+  cursor: pointer;
+}

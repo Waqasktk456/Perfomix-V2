@@ -1,0 +1,50 @@
+
+  .nav-item {
+    font-size: var(--font-size-sm) ;
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-semibold);
+   
+    color: var(--breadcrumb-color);
+   
+  }
+  
+  .nav-active {
+    color: var(--primary-color);
+    font-size: var(--font-size-sm) ;
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-semibold);
+  }
+  
+  
+  .employee-info {
+    display: flex;
+    justify-content: center; 
+    align-items: center;    
+    height: 80vh;            
+  }
+  
+  .employee-info p {
+    text-align: center;
+    color: var(--subtext-color);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-semibold);
+    /* margin: 0;  */
+  }
+  
+  
+  /* Edit Button */
+  .edit-btn {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  

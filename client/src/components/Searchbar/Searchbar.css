@@ -1,0 +1,24 @@
+.search-input {
+    display: flex;
+    align-items: center;
+    background: var(--bgcolor);
+    border-radius: 20px;
+    border-color: var(--search-bar-color);
+    border: none;
+    outline: none;
+    padding: 8px 12px;
+    width: 250px;
+    font-size: var(--font-size-sm) ;
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-normal);
+    color: #666;
+}
+
+.search-input::placeholder {
+    color: var(--searchbar-text);
+    font-size: var(--font-size-sm) ;
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-normal);
+}
+
+

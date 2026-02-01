@@ -1,0 +1,53 @@
+.settings-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #fafbfc;
+}
+
+.settings-sidebar {
+  width: 240px;
+  background: #fff;
+  border-right: 1px solid #ececec;
+  padding: 40px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.settings-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #23223a;
+  margin-left: 32px;
+  margin-bottom: 32px;
+}
+
+.settings-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.settings-nav li {
+  padding: 14px 32px;
+  font-size: 1.1rem;
+  color: #23223a;
+  cursor: pointer;
+  border-left: 4px solid transparent;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.settings-nav li.active {
+  background: #f3f4f8;
+  border-left: 4px solid #23223a;
+  font-weight: 600;
+}
+
+.settings-content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 0;
+} 
