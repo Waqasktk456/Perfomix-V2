@@ -3,6 +3,7 @@ const EvaluationCycle = require('../models/EvaluationCycle');
 const CycleTeamAssignment = require('../models/CycleTeamAssignment');
 const Evaluation = require('../models/Evaluation');
 const db = require('../config/db');
+const NotificationService = require('../services/notificationService');
 
 exports.createCycle = async (req, res) => {
   const { name: cycle_name, start_date, end_date } = req.body;
@@ -145,6 +146,34 @@ exports.activateCycle = async (req, res) => {
     await connection.commit();
     connection.release();
 
+    // Send cycle activation notifications to all line managers and staff
+    try {
+      const [allEmployees] = await db.execute(
+        `SELECT DISTINCT e.id FROM employees e
+         WHERE e.organization_id = ? 
+         AND e.role IN ('line-manager', 'staff')
+         AND e.is_active = 1`,
+        [organization_id]
+      );
+
+      const recipient_ids = allEmployees.map(emp => emp.id);
+
+      if (recipient_ids.length > 0) {
+        await NotificationService.sendCycleActivationNotification({
+          organization_id,
+          recipient_ids,
+          cycle_name: cycle.name,
+          cycle_id,
+          start_date: cycle.start_date,
+          end_date: cycle.end_date,
+          admin_id: req.user.id
+        });
+      }
+    } catch (notifError) {
+      console.error('Failed to send activation notifications:', notifError);
+      // Don't fail the activation if notifications fail
+    }
+
     res.json({
       message: 'Cycle activated successfully!',
       data: {
@@ -206,6 +235,30 @@ exports.assignTeam = async (req, res) => {
       team_name: team[0].team_name,
       matrix_name: matrix[0].matrix_name
     });
+
+    // Get employee count for the team
+    const [teamMembers] = await db.execute(
+      `SELECT COUNT(*) as count FROM team_members WHERE team_id = ?`,
+      [team_id]
+    );
+    const employee_count = teamMembers[0]?.count || 0;
+
+    // Send team assignment notification to line manager
+    try {
+      await NotificationService.sendTeamAssignmentNotification({
+        organization_id,
+        line_manager_id,
+        cycle_id,
+        cycle_name: cycle.name,
+        team_name: team[0].team_name,
+        employee_count,
+        deadline: cycle.end_date,
+        admin_id: req.user.id
+      });
+    } catch (notifError) {
+      console.error('Failed to send team assignment notification:', notifError);
+      // Don't fail the assignment if notification fails
+    }
 
     // Evaluations are now created on activation only
     res.status(201).json({

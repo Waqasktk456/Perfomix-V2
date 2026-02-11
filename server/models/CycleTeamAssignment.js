@@ -5,9 +5,9 @@ class CycleTeamAssignment {
   static async create({ cycle_id, team_id, matrix_id, line_manager_id, team_name, matrix_name }) {
     const [result] = await db.execute(
       `INSERT INTO cycle_team_assignments 
-       (cycle_id, team_id, matrix_id, evaluator_id, line_manager_id, created_at, team_name_snapshot, matrix_name_snapshot)
-       VALUES (?, ?, ?, ?, ?, NOW(), ?, ?)`,
-      [cycle_id, team_id, matrix_id, line_manager_id, line_manager_id, team_name, matrix_name]
+       (cycle_id, team_id, matrix_id, evaluator_id, line_manager_id, created_at)
+       VALUES (?, ?, ?, ?, ?, NOW())`,
+      [cycle_id, team_id, matrix_id, line_manager_id, line_manager_id]
     );
     return result.insertId;
   }

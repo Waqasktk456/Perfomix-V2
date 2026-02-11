@@ -7,6 +7,7 @@ import profilePic from "../assets/images/profile.png";
 import '../styles/typography.css'
 
 import SearchBar from "./Searchbar/Searchbar";
+import NotificationBell from "./NotificationBell";
 import { DashboardIcon, DepartmentIcon, EmployeesIcon, LogoutIcon, NOtificationIcon, OrganizationIcon, PerformanceEvaluationIcon, PerformanceMatrixIcon, PerformanceReportIcon, ProfileSideBar, SettingIcon, Teamicon } from "../assets";
 
 const Layout = () => {
@@ -176,7 +177,7 @@ const Layout = () => {
           <SearchBar />
           {/* Icons and Profile Section */}
           <div className="header-right">
-            <img src={notificationIcon} alt="Notifications" className="icon notification-icon" />
+            <NotificationBell />
             <span className="language">English ▼</span>
             <div className="profile">
               {userPicture ? (

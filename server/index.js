@@ -17,9 +17,13 @@ const teamRoutes = require('./routes/teamRoutes');
 const linemanager = require('./routes/lineManagerRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // ADD THIS LINE - EVALUATION CYCLE ROUTES
 const evaluationCycleRoutes = require('./routes/evaluationCycleRoutes');
+
+// Import cron jobs
+const scheduleDeadlineReminders = require('./services/cronJobs');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -105,6 +109,10 @@ app.use('/api/staff', require('./routes/staffRoutes'));
 console.log('Mounted: /api/staff → staffRoutes');
 app.use('/api/reports', reportRoutes);
 console.log('Mounted: /api/reports → reportRoutes');
+
+app.use('/api/notifications', notificationRoutes);
+console.log('Mounted: /api/notifications → notificationRoutes');
+
 // ADD THIS LINE - MOUNT EVALUATION CYCLE ROUTES
 app.use('/api', evaluationCycleRoutes);
 console.log('Mounted: /api/cycles, /api/cycle-assignments → evaluationCycleRoutes');
@@ -171,4 +179,8 @@ app.listen(port, () => {
   console.log('   GET    /api/cycles');
   console.log('   POST   /api/cycles');
   console.log('   GET    /api/organizations\n');
+
+  // Initialize cron jobs
+  scheduleDeadlineReminders();
+  console.log('✓ Cron jobs initialized\n');
 });

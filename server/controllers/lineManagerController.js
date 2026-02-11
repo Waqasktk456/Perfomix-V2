@@ -1,5 +1,6 @@
 // controllers/lineManagerController.js - Fixed Version
 const db = require('../config/db');
+const NotificationService = require('../services/notificationService');
 
 exports.getMyAssignedTeams = async (req, res) => {
   try {
@@ -494,6 +495,84 @@ exports.submitEvaluation = async (req, res) => {
     `, [finalScore, evaluation_id]);
 
     await connection.commit();
+
+    // Send evaluation submitted notification to the staff member
+    try {
+      const [[evalDetails]] = await connection.query(`
+        SELECT 
+          ev.employee_id,
+          ev.overall_score,
+          ev.organization_id,
+          ev.cycle_team_assignment_id,
+          e.first_name,
+          e.last_name,
+          ec.cycle_name,
+          lm.first_name AS lm_first_name,
+          lm.last_name AS lm_last_name
+        FROM evaluations ev
+        JOIN employees e ON ev.employee_id = e.id
+        JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+        JOIN evaluation_cycles ec ON cta.cycle_id = ec.id
+        JOIN employees lm ON cta.line_manager_id = lm.id
+        WHERE ev.id = ?
+      `, [evaluation_id]);
+
+      if (evalDetails) {
+        await NotificationService.sendEvaluationSubmittedNotification({
+          organization_id: evalDetails.organization_id,
+          staff_id: evalDetails.employee_id,
+          line_manager_id: lineManagerId,
+          cycle_name: evalDetails.cycle_name,
+          overall_score: finalScore.toFixed(2),
+          feedback_summary: 'Your performance evaluation has been completed. Please review your results.',
+          evaluation_id
+        });
+
+        // Check if all evaluations for this line manager in this cycle are completed
+        const [[completionCheck]] = await connection.query(`
+          SELECT 
+            COUNT(*) as total_evaluations,
+            SUM(CASE WHEN ev.status = 'completed' THEN 1 ELSE 0 END) as completed_evaluations,
+            cta.cycle_id,
+            ec.cycle_name,
+            ec.organization_id
+          FROM cycle_team_assignments cta
+          JOIN evaluations ev ON ev.cycle_team_assignment_id = cta.id
+          JOIN evaluation_cycles ec ON cta.cycle_id = ec.id
+          WHERE cta.line_manager_id = ? 
+            AND cta.id = ?
+          GROUP BY cta.cycle_id
+        `, [lineManagerId, evalDetails.cycle_team_assignment_id]);
+
+        // If all evaluations are completed, notify admins
+        if (completionCheck && completionCheck.total_evaluations === completionCheck.completed_evaluations) {
+          const [admins] = await connection.query(`
+            SELECT id FROM employees 
+            WHERE organization_id = ? 
+              AND role = 'admin' 
+              AND is_active = 1
+          `, [completionCheck.organization_id]);
+
+          if (admins.length > 0) {
+            const admin_ids = admins.map(a => a.id);
+            const line_manager_name = `${evalDetails.lm_first_name} ${evalDetails.lm_last_name}`;
+
+            await NotificationService.sendManagerCompletionNotification({
+              organization_id: completionCheck.organization_id,
+              admin_ids,
+              line_manager_id: lineManagerId,
+              line_manager_name,
+              evaluations_count: completionCheck.total_evaluations,
+              cycle_name: completionCheck.cycle_name,
+              cycle_id: completionCheck.cycle_id
+            });
+          }
+        }
+      }
+    } catch (notifError) {
+      console.error('Failed to send evaluation notifications:', notifError);
+      // Don't fail the submission if notifications fail
+    }
 
     res.json({
       success: true,
