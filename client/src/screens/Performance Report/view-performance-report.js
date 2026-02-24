@@ -122,7 +122,7 @@ const ViewPerformanceReport = () => {
       <div className="total-score-container">
         <div className="score-card">
           <div className="score-circle" style={{ borderColor: performance.color }}>
-            <div className="score-value">{totalScore}</div>
+            <div className="score-value">{Number(totalScore).toFixed(1)}</div>
             <div className="score-label">Overall Score</div>
           </div>
           <div className="performance-details">

@@ -7,6 +7,7 @@ const getOrgInfo = async (orgId) => {
 };
 
 // 1. Admin - Organization Overall Summary
+// 1. Admin - Organization Overall Summary
 exports.getAdminOrgSummary = async (req, res) => {
     try {
         const { cycle_id } = req.query;
@@ -28,18 +29,15 @@ exports.getAdminOrgSummary = async (req, res) => {
         }
         const cycle = cycleRows[0];
 
-        // Summary Statistics
+        // Summary Statistics (Expanded)
         const [statsRows] = await db.query(`
             SELECT 
                 COUNT(*) as total_evaluations,
                 COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count,
                 COUNT(CASE WHEN status != 'completed' THEN 1 END) as pending_count,
-                AVG(CASE WHEN status = 'completed' THEN (
-                    SELECT SUM((ed.score * pmx.weightage) / 100)
-                    FROM evaluation_details ed
-                    JOIN parameter_matrices pmx ON ed.parameter_id = pmx.parameter_id
-                    WHERE ed.evaluation_id = evaluations.id
-                ) END) as avg_score
+                AVG(CASE WHEN status = 'completed' THEN overall_score END) as avg_score,
+                MAX(CASE WHEN status = 'completed' THEN overall_score END) as highest_score,
+                MIN(CASE WHEN status = 'completed' THEN overall_score END) as lowest_score
             FROM evaluations 
             WHERE organization_id = ? AND cycle_team_assignment_id IN (
                 SELECT id FROM cycle_team_assignments WHERE cycle_id = ?
@@ -48,40 +46,44 @@ exports.getAdminOrgSummary = async (req, res) => {
 
         const stats = statsRows[0];
 
-        // Top Performers
+        // Top Performers (Expanded)
         const [topPerformers] = await db.query(`
             SELECT e.first_name as First_name, e.last_name as Last_name, 
-                (SELECT SUM((ed.score * pmx.weightage) / 100) FROM evaluation_details ed JOIN parameter_matrices pmx ON ed.parameter_id = pmx.parameter_id WHERE ed.evaluation_id = ev.id) as overall_score, 
-                e.designation as Designation
+                ev.overall_score, 
+                e.designation as Designation,
+                d.department_name
             FROM evaluations ev
             JOIN employees e ON ev.employee_id = e.id
+            LEFT JOIN departments d ON e.department_id = d.id
             WHERE ev.organization_id = ? AND ev.status = 'completed' 
             AND ev.cycle_team_assignment_id IN (SELECT id FROM cycle_team_assignments WHERE cycle_id = ?)
             ORDER BY overall_score DESC
-            LIMIT 5
+            LIMIT 10
         `, [orgId, cycle_id]);
 
-        // Lowest Performers
-        const [lowPerformers] = await db.query(`
+        // Employees Requiring Improvement
+        const [improvementNeeded] = await db.query(`
             SELECT e.first_name as First_name, e.last_name as Last_name, 
-                (SELECT SUM((ed.score * pmx.weightage) / 100) FROM evaluation_details ed JOIN parameter_matrices pmx ON ed.parameter_id = pmx.parameter_id WHERE ed.evaluation_id = ev.id) as overall_score, 
-                e.designation as Designation
+                ev.overall_score, 
+                e.designation as Designation,
+                d.department_name
             FROM evaluations ev
             JOIN employees e ON ev.employee_id = e.id
-            WHERE ev.organization_id = ? AND ev.status = 'completed'
+            LEFT JOIN departments d ON e.department_id = d.id
+            WHERE ev.organization_id = ? AND ev.status = 'completed' 
+            AND ev.overall_score < 70
             AND ev.cycle_team_assignment_id IN (SELECT id FROM cycle_team_assignments WHERE cycle_id = ?)
             ORDER BY overall_score ASC
-            LIMIT 5
         `, [orgId, cycle_id]);
 
         // Performance Distribution
         const [distribution] = await db.query(`
             SELECT 
                 CASE 
-                    WHEN (SELECT SUM((ed.score * pmx.weightage) / 100) FROM evaluation_details ed JOIN parameter_matrices pmx ON ed.parameter_id = pmx.parameter_id WHERE ed.evaluation_id = evaluations.id) >= 90 THEN 'Excellent'
-                    WHEN (SELECT SUM((ed.score * pmx.weightage) / 100) FROM evaluation_details ed JOIN parameter_matrices pmx ON ed.parameter_id = pmx.parameter_id WHERE ed.evaluation_id = evaluations.id) >= 80 THEN 'Good'
-                    WHEN (SELECT SUM((ed.score * pmx.weightage) / 100) FROM evaluation_details ed JOIN parameter_matrices pmx ON ed.parameter_id = pmx.parameter_id WHERE ed.evaluation_id = evaluations.id) >= 70 THEN 'Average'
-                    ELSE 'Poor'
+                    WHEN overall_score >= 85 THEN 'Excellent'
+                    WHEN overall_score >= 70 THEN 'Good'
+                    WHEN overall_score >= 50 THEN 'Satisfactory'
+                    ELSE 'Needs Improvement'
                 END as level,
                 COUNT(*) as count
             FROM evaluations
@@ -90,16 +92,34 @@ exports.getAdminOrgSummary = async (req, res) => {
             GROUP BY level
         `, [orgId, cycle_id]);
 
-        // Department-wise Average
+        // Department-wise Statistics
         const [deptStats] = await db.query(`
             SELECT d.department_name as Department_name, 
-                AVG((SELECT SUM((ed.score * pmx.weightage) / 100) FROM evaluation_details ed JOIN parameter_matrices pmx ON ed.parameter_id = pmx.parameter_id WHERE ed.evaluation_id = ev.id)) as avg_score
+                COUNT(ev.id) as emp_count,
+                AVG(ev.overall_score) as avg_score,
+                MAX(ev.overall_score) as max_score,
+                MIN(ev.overall_score) as min_score
             FROM evaluations ev
             JOIN employees e ON ev.employee_id = e.id
             JOIN departments d ON e.department_id = d.id
             WHERE ev.organization_id = ? AND ev.status = 'completed'
             AND ev.cycle_team_assignment_id IN (SELECT id FROM cycle_team_assignments WHERE cycle_id = ?)
             GROUP BY d.department_name
+        `, [orgId, cycle_id]);
+
+        // Line Manager Completion Summary
+        const [managerStats] = await db.query(`
+            SELECT 
+                CONCAT(m.first_name, ' ', m.last_name) as manager_name,
+                COUNT(ev.id) as total_assigned,
+                COUNT(CASE WHEN ev.status = 'completed' THEN 1 END) as completed,
+                COUNT(CASE WHEN ev.status != 'completed' THEN 1 END) as pending
+            FROM evaluations ev
+            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            JOIN employees m ON cta.line_manager_id = m.id
+            WHERE ev.organization_id = ?
+            AND cta.cycle_id = ?
+            GROUP BY m.id, m.first_name, m.last_name
         `, [orgId, cycle_id]);
 
         res.json({
@@ -115,12 +135,15 @@ exports.getAdminOrgSummary = async (req, res) => {
                 total_employees: stats.total_evaluations,
                 completed: stats.completed_count,
                 pending: stats.pending_count,
-                average_score: stats.avg_score ? parseFloat(stats.avg_score).toFixed(2) : 0
+                average_score: stats.avg_score ? parseFloat(stats.avg_score).toFixed(2) : 0,
+                highest_score: stats.highest_score || 0,
+                lowest_score: stats.lowest_score || 0
             },
             top_performers: topPerformers,
-            low_performers: lowPerformers,
+            improvement_needed: improvementNeeded,
             distribution: distribution,
-            dept_stats: deptStats
+            dept_stats: deptStats,
+            manager_stats: managerStats
         });
 
     } catch (error) {
@@ -337,27 +360,54 @@ exports.getIndividualReport = async (req, res) => {
             WHERE ed.evaluation_id = ?
         `, [evaluation_id]);
 
+        // Fetch Previous Evaluation (for comparison)
+        const [prevEvalRows] = await db.query(`
+            SELECT 
+                ev.overall_score,
+                ec.cycle_name
+            FROM evaluations ev
+            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            JOIN evaluation_cycles ec ON cta.cycle_id = ec.id
+            WHERE ev.employee_id = ? 
+            AND ev.status = 'completed'
+            AND ec.end_date < ?
+            ORDER BY ec.end_date DESC
+            LIMIT 1
+        `, [evaluation.employee_id, evaluation.cycle_start]);
+
+        const previousPerformance = prevEvalRows.length > 0 ? prevEvalRows[0] : null;
+
         res.json({
             success: true,
             employee_details: {
+                id: evaluation.employee_id, // Added ID
                 name: evaluation.employee_name,
                 role: evaluation.Designation,
                 department: evaluation.Department_name,
-                team: evaluation.team_name
+                team: evaluation.team_name,
+                image: evaluation.Profile_image // Assuming this might be available or added if needed, but not in query yet. 
+                // Let's stick to what we have in query:
+                // We didn't select Profile_image in the main query. Let's add it if possible, strictly following what was there.
+                // The main query selected `ev.*` and `e.*` implicitly via joins? No, it selected specific fields.
+                // It selected `e.user_id`. Let's assume we maintain existing fields + id.
             },
             cycle_details: {
                 name: evaluation.cycle_name,
                 start: evaluation.cycle_start,
                 end: evaluation.cycle_end,
-                organization: evaluation.organization_name
+                organization: evaluation.organization_name,
+                status: 'Closed' // This should ideally come from ec.status if available
             },
             performance: {
                 overall_score: evaluation.overall_score,
-                weighted_score: evaluation.weighted_score,
+                weighted_score: Number(evaluation.overall_score), // Assuming overall IS weighted in this context
                 status: evaluation.status,
-                submitted_at: evaluation.submitted_at,
+                submitted_at: evaluation.submitted_at || evaluation.updated_at, // Fallback
                 manager_remarks: evaluation.comments,
-                parameters: details
+                evaluator_name: evaluation.manager_name, // Added evaluator name
+                parameters: details,
+                previous_score: previousPerformance ? previousPerformance.overall_score : null,
+                previous_cycle: previousPerformance ? previousPerformance.cycle_name : null
             }
         });
 

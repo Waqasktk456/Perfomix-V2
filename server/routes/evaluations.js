@@ -269,7 +269,21 @@ router.get('/pending/count', async (req, res) => {
 router.get('/all-status', async (req, res) => {
   try {
     const organizationId = req.user.organizationId;
-    const { cycle_id } = req.query;
+    let { cycle_id } = req.query;
+
+    // If no cycle_id provided, find the active one to ensure we only show relevant data
+    if (!cycle_id) {
+      const [activeCycle] = await db.query(
+        "SELECT id FROM evaluation_cycles WHERE organization_id = ? AND status = 'active' LIMIT 1",
+        [organizationId]
+      );
+      if (activeCycle.length > 0) {
+        cycle_id = activeCycle[0].id;
+      } else {
+        // If no active cycle and no specific cycle requested, return empty
+        return res.json({ success: true, data: [] });
+      }
+    }
 
     let query = `
       SELECT 
@@ -287,7 +301,7 @@ router.get('/all-status', async (req, res) => {
          JOIN evaluations ev2 ON es2.evaluation_id = ev2.id
          JOIN cycle_team_assignments cta2 ON ev2.cycle_team_assignment_id = cta2.id
          WHERE es2.employee_id = e.id AND ev2.status = 'completed' AND es2.status = 'completed'
-         ${cycle_id ? 'AND cta2.cycle_id = ?' : ''}
+         AND cta2.cycle_id = ?
         ) AS completed_params,
         CASE 
           WHEN (SELECT COUNT(*) FROM parameter_matrices pmx3 WHERE pmx3.matrix_id = pm.id) > 0
@@ -297,7 +311,7 @@ router.get('/all-status', async (req, res) => {
                  JOIN evaluations ev4 ON es4.evaluation_id = ev4.id
                  JOIN cycle_team_assignments cta4 ON ev4.cycle_team_assignment_id = cta4.id
                  WHERE es4.employee_id = e.id AND ev4.status = 'completed' AND es4.status = 'completed'
-                 ${cycle_id ? 'AND cta4.cycle_id = ?' : ''}
+                 AND cta4.cycle_id = ?
                 )
           THEN 'Complete'
           ELSE 'Pending'
@@ -320,11 +334,12 @@ router.get('/all-status', async (req, res) => {
       JOIN performance_matrices pm ON cta.matrix_id = pm.id
       LEFT JOIN evaluations ev ON e.id = ev.employee_id AND cta.id = ev.cycle_team_assignment_id
       WHERE e.role = 'Staff' AND e.organization_id = ?
-      ${cycle_id ? 'AND cta.cycle_id = ?' : ''}
+      AND cta.cycle_id = ?
       GROUP BY e.id, pm.id, ev.id
       ORDER BY e.first_name ASC`;
 
-    const params = cycle_id ? [cycle_id, cycle_id, organizationId, cycle_id] : [organizationId];
+    // Params: cycle_id for subquery 1, cycle_id for subquery 2, orgId, cycle_id for main query
+    const params = [cycle_id, cycle_id, organizationId, cycle_id];
     const [rows] = await db.query(query, params);
 
     res.json({

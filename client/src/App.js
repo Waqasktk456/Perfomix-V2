@@ -115,6 +115,7 @@ function App() {
             <Route path="linemanager-performance" element={<LineManagerPerformance />} />
             <Route path="performance-report" element={<EmployeePerformanceReport />} />
             <Route path="view-performance-report" element={<ViewPerformanceReport />} />
+            <Route path="individual-report/:evaluation_id" element={<IndividualReport />} />
             <Route path="team-performance" element={<TeamPerformance />} />
             <Route path="performance-evaluation" element={<PerformanceEvaluation />} />
             <Route path="linemanager-evaluation" element={<LineManagerEvaluationScreen />} />

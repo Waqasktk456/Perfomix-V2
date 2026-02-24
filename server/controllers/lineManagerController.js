@@ -4,7 +4,26 @@ const NotificationService = require('../services/notificationService');
 
 exports.getMyAssignedTeams = async (req, res) => {
   try {
-    const lineManagerId = req.user.id;
+    const userId = req.user.id;
+    let lineManagerId = userId;
+
+    // Resolve Employee ID from User ID if they are different
+    // (User ID comes from `users` table, Line Manager ID in assignments is `employees.id`)
+    const [employeeRows] = await db.query('SELECT id FROM employees WHERE user_id = ?', [userId]);
+
+    if (employeeRows.length > 0) {
+      lineManagerId = employeeRows[0].id;
+    } else {
+      // Fallback: IF the user is logged in but has no employee record linked,
+      // it might be an admin testing or a legacy user.
+      // However, for correct functionality, we need the Employee ID.
+      // If no employee found, we can't find assignments by definition.
+
+      // Check if maybe the user IS the employee (legacy behavior) by checking if ID exists in employees directly?
+      // But safer to return empty if no link found.
+      console.warn(`getMyAssignedTeams: No employee record found for user_id ${userId}`);
+      // We will try using userId as lineManagerId just in case, but usually this is 0 results.
+    }
 
     const [rows] = await db.query(`
       SELECT 

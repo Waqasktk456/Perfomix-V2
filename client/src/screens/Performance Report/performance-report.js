@@ -280,11 +280,7 @@ const EmployeePerformanceReport = () => {
       <div className="bottom-buttons">
         <button
           className="profile-btn"
-          onClick={() => {
-            if (selectedEmployee) {
-              navigate(`/employees/details/${selectedEmployee.id}`);
-            }
-          }}
+          onClick={() => selectedEmployee && navigate(`/employees/details/${selectedEmployee.id}`)}
           disabled={!selectedEmployee}
         >
           View Profile
