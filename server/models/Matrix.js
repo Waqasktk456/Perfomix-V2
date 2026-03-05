@@ -2,7 +2,7 @@
 const db = require('../config/db');
 
 const Matrix = {
-  create: async (matrix_name, organization_id, created_by, parameters, status = 'Draft') => {
+  create: async (matrix_name, organization_id, created_by, parameters, status = 'Draft', matrix_type = 'staff') => {
     let connection;
     try {
       connection = await db.getConnection();
@@ -29,9 +29,9 @@ const Matrix = {
 
       const [matrixRes] = await connection.query(
         `INSERT INTO performance_matrices 
-         (matrix_name, organization_id, created_by, status) 
-         VALUES (?, ?, ?, ?)`,
-        [matrix_name, organization_id, created_by, finalStatus]
+         (matrix_name, matrix_type, organization_id, created_by, status) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [matrix_name, matrix_type, organization_id, created_by, finalStatus]
       );
 
       const matrix_id = matrixRes.insertId;
@@ -67,6 +67,7 @@ const Matrix = {
       SELECT 
         m.id AS matrix_id,
         m.matrix_name,
+        m.matrix_type,
         m.status,
         m.created_at,
         (SELECT COUNT(*) 
@@ -92,6 +93,7 @@ const Matrix = {
     return rows.map(row => ({
       matrix_id: row.matrix_id,
       matrix_name: row.matrix_name,
+      matrix_type: row.matrix_type,
       status: row.status,
       created_at: row.created_at,
       is_in_active_cycle: row.is_in_active_cycle,
@@ -104,6 +106,7 @@ const Matrix = {
       SELECT 
         m.id AS matrix_id,
         m.matrix_name,
+        m.matrix_type,
         m.status,
         COALESCE(JSON_ARRAYAGG(
           JSON_OBJECT(
@@ -125,12 +128,13 @@ const Matrix = {
     return {
       matrix_id: rows[0].matrix_id,
       matrix_name: rows[0].matrix_name,
+      matrix_type: rows[0].matrix_type,
       status: rows[0].status,
       parameters: rows[0].parameters || []
     };
   },
 
-  update: async (matrix_id, matrix_name, organization_id, parameters, status = 'Draft', created_by) => {
+  update: async (matrix_id, matrix_name, organization_id, parameters, status = 'Draft', matrix_type = 'staff', created_by) => {
     let connection;
     try {
       connection = await db.getConnection();
@@ -149,8 +153,10 @@ const Matrix = {
         throw new Error('Matrix not found');
       }
 
+      const currentStatus = oldMatrix[0].status.toLowerCase();
+
       // If active, we MUST archive and create new version
-      if (oldMatrix[0].status === 'active' || oldMatrix[0].status === 'archived') {
+      if (currentStatus === 'active' || currentStatus === 'archived') {
         // Archive old
         await connection.query(
           'UPDATE performance_matrices SET status = "archived" WHERE id = ?',
@@ -160,9 +166,9 @@ const Matrix = {
         // Create new version
         const [newMatrixRes] = await connection.query(
           `INSERT INTO performance_matrices 
-           (matrix_name, organization_id, created_by, status) 
-           VALUES (?, ?, ?, ?)`,
-          [matrix_name, organization_id, created_by, status]
+           (matrix_name, matrix_type, organization_id, created_by, status) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [matrix_name, matrix_type, organization_id, created_by, status]
         );
 
         const new_matrix_id = newMatrixRes.insertId;
@@ -187,9 +193,9 @@ const Matrix = {
         // If it was a Draft, we can just update it
         const [updateRes] = await connection.query(
           `UPDATE performance_matrices 
-           SET matrix_name = ?, status = ?
+           SET matrix_name = ?, matrix_type = ?, status = ?
            WHERE id = ? AND organization_id = ?`,
-          [matrix_name, status, matrix_id, organization_id]
+          [matrix_name, matrix_type, status, matrix_id, organization_id]
         );
 
         await connection.query('DELETE FROM parameter_matrices WHERE matrix_id = ?', [matrix_id]);

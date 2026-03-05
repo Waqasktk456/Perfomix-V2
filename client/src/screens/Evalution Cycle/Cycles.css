@@ -83,24 +83,31 @@ table tr:hover {
 }
 
 .status-badge.closed {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: #dbeafe;
+  color: #1e40af;
 }
 
 .actions-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 0px;
+}
+
+.actions-header {
+  text-align: center;
 }
 
 .icon-btn {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 5px;
+  padding: 2px;
   border-radius: 50%;
   transition: background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .icon-btn:hover {
@@ -110,11 +117,12 @@ table tr:hover {
 .icon {
   height: 18px;
   width: 18px;
+  display: block;
 }
 
 .divider {
   color: #9ca3af;
-  margin: 0 4px;
+  margin: 0 3px;
 }
 
 .activate-btn {

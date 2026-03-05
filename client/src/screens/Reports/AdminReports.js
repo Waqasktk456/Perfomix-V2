@@ -8,6 +8,7 @@ import { FaDownload, FaFilePdf, FaFileCsv, FaFilter } from 'react-icons/fa';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { toast } from 'react-toastify';
+import { generateEnhancedOrgReport } from '../../utils/enhancedOrgReportPDF_COMPLETE';
 import './reports.css';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
@@ -77,30 +78,19 @@ const AdminReports = () => {
     };
 
     const exportToPDF = async () => {
-        const element = reportRef.current;
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-        });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = 210;
-        const pageHeight = 295;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
+        try {
+            if (!reportData) {
+                toast.error('No report data available');
+                return;
+            }
+            
+            toast.info('Generating professional organization report...');
+            await generateEnhancedOrgReport(reportData);
+            toast.success('Professional report downloaded successfully!');
+        } catch (error) {
+            console.error('PDF Export Error:', error);
+            toast.error('Failed to generate PDF report');
         }
-        pdf.save(`Perfomix_Org_Report_${reportData?.header?.cycle_name}_${new Date().toLocaleDateString()}.pdf`);
     };
 
     const exportToCSV = () => {

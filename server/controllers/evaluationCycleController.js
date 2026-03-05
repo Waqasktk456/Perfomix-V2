@@ -57,6 +57,30 @@ exports.getAllCycles = async (req, res) => {
   }
 };
 
+exports.getCycleById = async (req, res) => {
+  const { id } = req.params;
+  const { organizationId: organization_id } = req.user || {};
+
+  if (!organization_id) {
+    return res.status(401).json({ error: 'Unauthorized: Missing organization' });
+  }
+
+  try {
+    const cycle = await EvaluationCycle.findByIdAndOrg(id, organization_id);
+    
+    if (!cycle) {
+      return res.status(404).json({ error: 'Cycle not found' });
+    }
+
+    cycle.assigned_teams_count = await EvaluationCycle.getAssignmentCount(cycle.id);
+
+    res.json(cycle);
+  } catch (error) {
+    console.error('Fetch cycle error:', error);
+    res.status(500).json({ error: 'Failed to fetch cycle' });
+  }
+};
+
 exports.updateCycle = async (req, res) => {
   const { id } = req.params;
   const { name: cycle_name, start_date, end_date } = req.body;
@@ -289,3 +313,61 @@ exports.getAssignments = async (req, res) => {
 };
 
 module.exports = exports;
+
+exports.completeCycle = async (req, res) => {
+  const { id: cycle_id } = req.params;
+  const { organizationId: organization_id } = req.user || {};
+
+  if (!organization_id) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const cycle = await EvaluationCycle.findByIdAndOrg(cycle_id, organization_id);
+    if (!cycle) {
+      return res.status(404).json({ error: 'Cycle not found' });
+    }
+    if (cycle.status !== 'active') {
+      return res.status(400).json({ error: 'Only active cycles can be completed' });
+    }
+
+    await db.execute(
+      `UPDATE evaluation_cycles SET status = 'closed' WHERE id = ?`,
+      [cycle_id]
+    );
+
+    res.json({ message: 'Cycle marked as closed successfully' });
+  } catch (error) {
+    console.error('Complete cycle error:', error);
+    res.status(500).json({ error: 'Failed to complete cycle' });
+  }
+};
+
+exports.deleteCycle = async (req, res) => {
+  const { id: cycle_id } = req.params;
+  const { organizationId: organization_id } = req.user || {};
+
+  if (!organization_id) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const cycle = await EvaluationCycle.findByIdAndOrg(cycle_id, organization_id);
+    if (!cycle) {
+      return res.status(404).json({ error: 'Cycle not found' });
+    }
+    if (cycle.status === 'active') {
+      return res.status(400).json({ error: 'Cannot delete active cycle. Please complete it first.' });
+    }
+
+    // Delete related data
+    await db.execute(`DELETE FROM evaluations WHERE cycle_team_assignment_id IN (SELECT id FROM cycle_team_assignments WHERE cycle_id = ?)`, [cycle_id]);
+    await db.execute(`DELETE FROM cycle_team_assignments WHERE cycle_id = ?`, [cycle_id]);
+    await db.execute(`DELETE FROM evaluation_cycles WHERE id = ?`, [cycle_id]);
+
+    res.json({ message: 'Cycle deleted successfully' });
+  } catch (error) {
+    console.error('Delete cycle error:', error);
+    res.status(500).json({ error: 'Failed to delete cycle' });
+  }
+};

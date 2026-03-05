@@ -14,7 +14,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* gap: 4px; */
+  gap: 0px;
+}
+
+.actions-cell .divider {
+  margin: 0 4px;
+  color: #ccc;
+}
+
+.actions-header {
+  text-align: center;
 }
 
 .icon-btn {

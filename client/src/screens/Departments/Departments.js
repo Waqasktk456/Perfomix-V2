@@ -152,6 +152,7 @@ const Departments = () => {
           <table className="departments-table">
             <thead>
               <tr>
+                <th>SR No</th>
                 <th>Department Code</th>
                 <th>Department Name</th>
                 <th>Department Type</th>
@@ -162,13 +163,14 @@ const Departments = () => {
               </tr>
             </thead>
             <tbody>
-              {departments.map((dept) => (
+              {departments.map((dept, index) => (
                 <tr
                   key={dept.id || dept.department_code}
                   onClick={() => handleRowClick(dept)}
                   className={selectedDepartment?.department_code === dept.department_code ? 'selected-row' : ''}
                   style={{ cursor: 'pointer' }}
                 >
+                  <td>{index + 1}</td>
                   <td>{dept.department_code}</td>
                   <td>{dept.department_name}</td>
                   <td>{dept.department_type}</td>

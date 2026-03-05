@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import './EvaluateLineManager.css';
@@ -7,79 +7,133 @@ import './EvaluateLineManager.css';
 const EvaluateLineManager = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [evaluator, setEvaluator] = useState(null);
-  const [departmentMatrix, setDepartmentMatrix] = useState([]);
+  const location = useLocation();
+  const state = location.state || {};
+  
+  const [lineManager, setLineManager] = useState(null);
+  const [matrixParameters, setMatrixParameters] = useState([]);
   const [evaluations, setEvaluations] = useState({});
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState('');
   const [recommendation, setRecommendation] = useState('');
   const [error, setError] = useState(null);
+  const [matrixId, setMatrixId] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch evaluator details
-        const evaluatorResponse = await axios.get(`http://localhost:5000/api/employees/${id}`);
-        const evaluatorData = evaluatorResponse.data.data;
-        console.log('Evaluator Data:', evaluatorData);
-        console.log('Department code being used for matrix fetch:', evaluatorData.Department_code);
+        const token = localStorage.getItem('token');
+        if (!token) {
+          toast.error('Session expired');
+          navigate('/login');
+          return;
+        }
 
-        // Fetch all matrices for debugging
-        const allMatricesResponse = await axios.get('http://localhost:5000/api/matrices');
-        console.log('All matrices:', allMatricesResponse.data.data);
+        const config = { headers: { Authorization: `Bearer ${token}` } };
 
-        // Fetch all parameters assigned to this evaluator (across all matrices)
-        const parametersResponse = await axios.get(`http://localhost:5000/api/parameters/by-evaluator/${evaluatorData.Employee_id}`);
-        const parameters = parametersResponse.data; // If your backend returns {success, data}, use parametersResponse.data.data
-        console.log('Parameters for evaluator:', parameters);
+        // Validate we have required data
+        if (!state.cycleId) {
+          toast.error('Invalid evaluation cycle. Please go back and select a cycle.');
+          navigate('/linemanager-evaluation');
+          return;
+        }
 
-        setEvaluator({
-          id: evaluatorData.Employee_id,
-          name: `${evaluatorData.First_name} ${evaluatorData.Last_name}`,
-          email: evaluatorData.Email,
-          department: evaluatorData.Department_name,
-          role: evaluatorData.Role,
-          joinDate: evaluatorData.Join_date
+        // Set line manager info from state
+        setLineManager({
+          id: state.lineManagerId || id,
+          name: state.lineManagerName || 'Unknown',
+          email: state.lineManagerEmail || '',
+          department: state.department || 'N/A',
+          designation: state.designation || 'N/A',
+          cycleName: state.cycleName || 'N/A'
         });
 
-        setDepartmentMatrix(parameters.map(param => ({
-          id: param.parameter_id,
-          parameter: param.parameter_name,
-          weight: param.weightage,
-          description: param.description,
-          matrix_id: param.matrix_id
-        })));
+        // Fetch all matrices and find the active line-manager matrix
+        const matricesResponse = await axios.get(
+          'http://localhost:5000/api/matrices',
+          config
+        );
+
+        console.log('Matrices response:', matricesResponse.data);
+
+        if (matricesResponse.data.success) {
+          const matrices = matricesResponse.data.data || [];
+          
+          console.log('All matrices:', matrices);
+          
+          // Find active line-manager matrix
+          const lineManagerMatrix = matrices.find(
+            m => m.matrix_type === 'line-manager' && m.status === 'active'
+          );
+
+          console.log('Found line manager matrix:', lineManagerMatrix);
+
+          if (!lineManagerMatrix) {
+            toast.error('No active line manager matrix found. Please create and activate one first.');
+            navigate('/linemanager-evaluation');
+            return;
+          }
+
+          // The matrix ID might be 'id' or 'matrix_id'
+          const matrixIdValue = lineManagerMatrix.id || lineManagerMatrix.matrix_id;
+          
+          console.log('Matrix ID:', matrixIdValue);
+          
+          if (!matrixIdValue) {
+            toast.error('Invalid matrix ID');
+            navigate('/linemanager-evaluation');
+            return;
+          }
+
+          setMatrixId(matrixIdValue);
+
+          // Fetch matrix parameters
+          const matrixResponse = await axios.get(
+            `http://localhost:5000/api/matrices/${matrixIdValue}`,
+            config
+          );
+
+          if (matrixResponse.data.success) {
+            const params = matrixResponse.data.data.parameters || [];
+            setMatrixParameters(params.map(param => ({
+              id: param.parameter_id,
+              parameter: param.parameter_name,
+              weight: param.weightage,
+              description: param.description || ''
+            })));
+          }
+        }
 
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
-        setError('Failed to fetch evaluation data. Please check your connection or contact admin.');
+        toast.error('Failed to fetch evaluation data: ' + (error.response?.data?.message || error.message));
+        setError('Failed to fetch evaluation data. Please try again.');
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [id]);
+  }, [id, state, navigate]);
 
-  const handleScoreChange = (evalKey, score) => {
+  const handleScoreChange = (paramId, score) => {
     if (score === "" || (score >= 0 && score <= 100)) {
       setEvaluations(prev => ({
         ...prev,
-        [evalKey]: score === "" ? "" : score
+        [paramId]: score === "" ? "" : score
       }));
     }
   };
 
   const calculateTotalScore = () => {
     let total = 0;
-    departmentMatrix.forEach(param => {
-      const evalKey = `${param.matrix_id}_${param.id}`;
-      const score = evaluations[evalKey];
+    matrixParameters.forEach(param => {
+      const score = evaluations[param.id];
       if (score !== undefined && score !== null && score !== '') {
         total += (param.weight / 100) * score;
       }
     });
-    return total.toFixed(2); // Show as a number, not a percent
+    return total.toFixed(2);
   };
 
   const handleSubmit = async () => {
@@ -88,82 +142,68 @@ const EvaluateLineManager = () => {
       return;
     }
 
-    // Require a score for every parameter (composite key)
-    const allScored = departmentMatrix.every(param => {
-      const evalKey = `${param.matrix_id}_${param.id}`;
-      return evaluations[evalKey] !== undefined && evaluations[evalKey] !== null && evaluations[evalKey] !== '';
+    const allScored = matrixParameters.every(param => {
+      return evaluations[param.id] !== undefined && evaluations[param.id] !== null && evaluations[param.id] !== '';
     });
+    
     if (!allScored) {
       toast.error('Please provide scores for all parameters');
       return;
     }
 
-    // Group parameters by matrix_id
-    const matrixGroups = {};
-    departmentMatrix.forEach(param => {
-      if (!matrixGroups[param.matrix_id]) matrixGroups[param.matrix_id] = [];
-      matrixGroups[param.matrix_id].push(param);
-    });
-
     try {
-      // Use the employee ID from the URL as the evaluator ID since we're evaluating a Line Manager
-      const evaluatorId = id; // This is the ID from useParams()
-      console.log('Using evaluator ID:', evaluatorId);
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Submit an evaluation for each matrix
-      for (const [matrixId, params] of Object.entries(matrixGroups)) {
-        // Calculate total score for this matrix
-        let total = 0;
-        params.forEach(param => {
-          const evalKey = `${param.matrix_id}_${param.id}`;
-          const score = evaluations[evalKey];
-          if (score !== undefined && score !== null && score !== '') {
-            total += (param.weight / 100) * score;
-          }
-        });
+      const totalScore = parseFloat(calculateTotalScore());
 
-        const evaluationPayload = {
-          matrix_id: matrixId,
-          employee_id: id,
-          evaluator_id: evaluatorId,
-          overall_score: total,
-          comments: feedback,
-          recommendation: recommendation,
-          status: 'submitted',
-          evaluation_type: 'evaluator'
-        };
+      const evaluationPayload = {
+        matrix_id: matrixId,
+        employee_id: lineManager.id,
+        cycle_id: state.cycleId,
+        overall_score: totalScore,
+        comments: feedback,
+        recommendation: recommendation,
+        status: 'completed',
+        evaluation_type: 'line-manager'
+      };
 
-        // Debug: log the payload
-        console.log('Submitting evaluation with payload:', evaluationPayload);
+      console.log('Submitting evaluation with payload:', evaluationPayload);
 
-        // Create evaluation record
-        const evaluationResponse = await axios.post('http://localhost:5000/api/evaluations', evaluationPayload);
+      const evaluationResponse = await axios.post(
+        'http://localhost:5000/api/evaluations',
+        evaluationPayload,
+        config
+      );
 
-        if (evaluationResponse.data.success) {
-          // Create evaluation details for each parameter (composite key)
-          const evaluationId = evaluationResponse.data.evaluation_id;
-          const detailPromises = params.map(param => {
-            const evalKey = `${param.matrix_id}_${param.id}`;
-            return axios.post('http://localhost:5000/api/evaluations/details', {
+      if (evaluationResponse.data.success) {
+        const evaluationId = evaluationResponse.data.evaluation_id;
+        
+        // Create evaluation details for each parameter
+        const detailPromises = matrixParameters.map(param => {
+          return axios.post(
+            'http://localhost:5000/api/evaluations/details',
+            {
               evaluation_id: evaluationId,
               parameter_id: param.id,
-              score: evaluations[evalKey],
+              score: evaluations[param.id],
               comments: feedback
-            });
-          });
+            },
+            config
+          );
+        });
 
-          await Promise.all(detailPromises);
-        }
+        await Promise.all(detailPromises);
+        toast.success('Line manager evaluation submitted successfully');
+        navigate('/linemanager-evaluation');
       }
-      toast.success('Evaluation(s) submitted successfully');
-      navigate('/linemanager-evaluation');
     } catch (error) {
       console.error('Error submitting evaluation:', error);
       toast.error('Failed to submit evaluation: ' + (error.response?.data?.message || error.message));
     }
   };
 
-  if (loading || !evaluator) {
+  if (loading || !lineManager) {
     return <div className="lm-eval-form-loading">Loading...</div>;
   }
 
@@ -178,29 +218,33 @@ const EvaluateLineManager = () => {
           Line Manager Evaluation
         </span>
         <span className="separator">›</span>
-        <span className="active">Evaluate {evaluator.name}</span>
+        <span className="active">Evaluate {lineManager.name}</span>
       </div>
 
       <div className="lm-eval-form-content lm-eval-form-content-fullwidth" style={{ width: '100%', maxWidth: '100%' }}>
         <div className="lm-eval-form-header" style={{ marginTop: 0 }}>
           <div className="lm-eval-form-manager-info">
-            <h2 style={{ marginTop: 0 }}>Evaluate Department Evaluator</h2>
+            <h2 style={{ marginTop: 0 }}>Evaluate Line Manager</h2>
             <div className="lm-eval-form-info-grid">
               <div className="lm-eval-form-info-item">
                 <label>Name</label>
-                <span>{evaluator.name}</span>
+                <span>{lineManager.name}</span>
               </div>
               <div className="lm-eval-form-info-item">
                 <label>Email</label>
-                <span>{evaluator.email}</span>
+                <span>{lineManager.email}</span>
               </div>
               <div className="lm-eval-form-info-item">
                 <label>Department</label>
-                <span>{evaluator.department}</span>
+                <span>{lineManager.department}</span>
               </div>
               <div className="lm-eval-form-info-item">
-                <label>Role</label>
-                <span>{evaluator.role}</span>
+                <label>Designation</label>
+                <span>{lineManager.designation}</span>
+              </div>
+              <div className="lm-eval-form-info-item">
+                <label>Evaluation Cycle</label>
+                <span>{lineManager.cycleName}</span>
               </div>
             </div>
           </div>
@@ -220,13 +264,11 @@ const EvaluateLineManager = () => {
                 </tr>
               </thead>
               <tbody>
-                {departmentMatrix.map(parameter => {
-                  const evalKey = `${parameter.matrix_id}_${parameter.id}`;
-                  const rawScore = evaluations[evalKey];
-                  const score = rawScore === undefined || rawScore === null || rawScore === '' ? '' : rawScore;
+                {matrixParameters.map(parameter => {
+                  const score = evaluations[parameter.id];
                   const weightedScore = ((parameter.weight / 100) * (score || 0)).toFixed(2);
                   return (
-                    <tr key={evalKey}>
+                    <tr key={parameter.id}>
                       <td>{parameter.parameter}</td>
                       <td>{parameter.description}</td>
                       <td>{parameter.weight}%</td>
@@ -235,8 +277,8 @@ const EvaluateLineManager = () => {
                           type="number"
                           min="0"
                           max="100"
-                          value={score}
-                          onChange={(e) => handleScoreChange(evalKey, e.target.value === "" ? "" : parseInt(e.target.value))}
+                          value={score === undefined || score === null ? '' : score}
+                          onChange={(e) => handleScoreChange(parameter.id, e.target.value === "" ? "" : parseInt(e.target.value))}
                           className="lm-eval-form-score-input"
                         />
                       </td>

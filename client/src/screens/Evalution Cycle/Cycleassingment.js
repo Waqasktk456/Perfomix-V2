@@ -118,9 +118,15 @@ const CycleAssignments = () => {
         Assign Teams to: <strong>{cycle?.name}</strong>
       </h2>
 
-      {cycle?.status !== "draft" && (
-        <div style={{ padding: "15px", background: "#fee2e2", borderRadius: "8px", color: "#991b1b", marginBottom: "20px" }}>
-          <strong>Warning:</strong> This cycle is {cycle.status}. Assignments are locked.
+      {(cycle?.status === "active" || cycle?.status === "closed") && (
+        <div style={{ 
+          padding: "15px", 
+          background: cycle?.status === "closed" ? "#dbeafe" : "#fee2e2", 
+          borderRadius: "8px", 
+          color: cycle?.status === "closed" ? "#1e40af" : "#991b1b", 
+          marginBottom: "20px" 
+        }}>
+          <strong>{cycle?.status === "closed" ? "Info:" : "Warning:"}</strong> This cycle is {cycle.status}. {cycle?.status === "closed" ? "Assignments are read-only." : "Assignments are locked."}
         </div>
       )}
 
@@ -128,7 +134,7 @@ const CycleAssignments = () => {
         <select
           value={selectedTeam}
           onChange={(e) => setSelectedTeam(e.target.value)}
-          // disabled={cycle?.status !== "draft"}
+          disabled={cycle?.status !== "draft"}
           className="select-input"
         >
           <option value="">Select Team</option>
@@ -142,7 +148,7 @@ const CycleAssignments = () => {
         <select
           value={selectedMatrix}
           onChange={(e) => setSelectedMatrix(e.target.value)}
-          // disabled={cycle?.status !== "draft"}
+          disabled={cycle?.status !== "draft"}
           className="select-input"
         >
           <option value="">Select Active Matrix</option>
@@ -156,7 +162,7 @@ const CycleAssignments = () => {
         <select
           value={selectedManager}
           onChange={(e) => setSelectedManager(e.target.value)}
-          // disabled={cycle?.status !== "draft"}
+          disabled={cycle?.status !== "draft"}
           className="select-input"
         >
           <option value="">Select Line Manager</option>
@@ -170,7 +176,7 @@ const CycleAssignments = () => {
         <button
           className="add-parameter-btn"
           onClick={handleAssign}
-          disabled={loading}
+          disabled={loading || cycle?.status !== "draft"}
         >
           <FaPlus style={{ marginRight: "8px" }} />
           {loading ? "Assigning..." : "Assign Team"}

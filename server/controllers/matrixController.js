@@ -10,7 +10,7 @@ const matrixController = {
   createMatrix: async (req, res) => {
     try {
       const user = getUserFromRequest(req);
-      const { matrix_name, parameters, status = 'Draft' } = req.body;
+      const { matrix_name, matrix_type = 'staff', parameters, status = 'Draft' } = req.body;
 
       const organization_id = user?.organizationId;
       const created_by = user?.id;
@@ -27,7 +27,7 @@ const matrixController = {
         return res.status(400).json({ success: false, message: 'At least one parameter required' });
       }
 
-      const result = await Matrix.create(matrix_name.trim(), organization_id, created_by, parameters, status);
+      const result = await Matrix.create(matrix_name.trim(), organization_id, created_by, parameters, status, matrix_type);
       res.status(201).json(result);
     } catch (error) {
       console.error('Create matrix error:', error);
@@ -78,8 +78,9 @@ const matrixController = {
     try {
       const user = getUserFromRequest(req);
       const organization_id = user?.organizationId;
+      const created_by = user?.id;
       const { matrix_id } = req.params;
-      const { matrix_name, parameters, status = 'Draft' } = req.body;
+      const { matrix_name, matrix_type = 'staff', parameters, status = 'Draft' } = req.body;
 
       // Check if matrix is in active cycle
       const activeMatrices = await EvaluationCycle.checkMatrixInActiveCycle([matrix_id]);
@@ -99,7 +100,7 @@ const matrixController = {
         return res.status(400).json({ success: false, message: 'At least one parameter required' });
       }
 
-      const result = await Matrix.update(matrix_id, matrix_name.trim(), organization_id, parameters, status);
+      const result = await Matrix.update(matrix_id, matrix_name.trim(), organization_id, parameters, status, matrix_type, created_by);
       res.json(result);
     } catch (error) {
       console.error('updateMatrix error:', error);

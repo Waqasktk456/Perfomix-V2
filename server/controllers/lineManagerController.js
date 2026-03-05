@@ -636,7 +636,8 @@ exports.getTeamEmployeesForEvaluation = async (req, res) => {
         COALESCE((
           SELECT COUNT(*) 
           FROM evaluation_details ed 
-          WHERE ed.evaluation_id = ev.id
+          WHERE ed.evaluation_id = ev.id 
+          AND ed.score IS NOT NULL
         ), 0) AS completed_params,
         COALESCE((
           SELECT COUNT(*) 

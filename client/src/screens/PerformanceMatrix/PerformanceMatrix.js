@@ -62,6 +62,8 @@ const PerformanceMatrices = () => {
 
   const handleEdit = (matrix) => {
     console.log(`Checking matrix ${matrix.matrix_name}: is_in_active_cycle=${matrix.is_in_active_cycle}`);
+    console.log('Full matrix object:', matrix);
+    console.log('Matrix type:', matrix.matrix_type);
     if (matrix.is_in_active_cycle > 0) {
       toast.error("Matrix is in an active cycle cannot be edit or delete");
       return;
@@ -97,23 +99,39 @@ const PerformanceMatrices = () => {
       <table>
         <thead>
           <tr>
+            <th>SR No</th>
             <th>MATRIX ID</th>
             <th>NAME</th>
+            <th>TYPE</th>
             <th>STATUS</th>
-            <th>ACTION</th>
+            <th className="actions-header">ACTION</th>
           </tr>
         </thead>
         <tbody>
           {matrices.length > 0 ? (
-            matrices.map((matrix) => (
+            matrices.map((matrix, index) => (
               <tr
                 key={matrix.matrix_id}
                 className={selectedMatrix?.matrix_id === matrix.matrix_id ? 'selected-row' : ''}
                 onClick={() => handleRowClick(matrix)}
                 style={{ cursor: 'pointer' }}
               >
+                <td>{index + 1}</td>
                 <td>{matrix.matrix_id}</td>
                 <td>{matrix.matrix_name}</td>
+                <td>
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    backgroundColor: matrix.matrix_type === 'line-manager' ? '#E0F2FE' : '#F0FDF4',
+                    color: matrix.matrix_type === 'line-manager' ? '#0369A1' : '#15803D',
+                    textTransform: 'capitalize'
+                  }}>
+                    {matrix.matrix_type === 'line-manager' ? 'Line Manager' : 'Staff'}
+                  </span>
+                </td>
                 <td>{matrix.status || 'active'}</td>
                 <td className="actions-cell" onClick={(e) => e.stopPropagation()}>
                   <button
@@ -136,7 +154,7 @@ const PerformanceMatrices = () => {
             ))
           ) : (
             <tr>
-              <td colSpan="4" className="no-data">No matrices found</td>
+              <td colSpan="6" className="no-data">No matrices found</td>
             </tr>
           )}
         </tbody>

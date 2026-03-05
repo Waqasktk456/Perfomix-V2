@@ -6,527 +6,259 @@ import './LineManagerEvaluation.css';
 
 const LineManagerEvaluationScreen = () => {
   const navigate = useNavigate();
-  const [departments, setDepartments] = useState([]);
-  const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [evaluators, setEvaluators] = useState([]);
+  const [lineManagers, setLineManagers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingEvaluators, setLoadingEvaluators] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [selectedEvaluator, setSelectedEvaluator] = useState(null);
-  const [employees, setEmployees] = useState([]);
-  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [selectedLineManager, setSelectedLineManager] = useState(null);
+  const [cycles, setCycles] = useState([]);
+  const [selectedCycleId, setSelectedCycleId] = useState("");
+  
+  // Search states
+  const [searchType, setSearchType] = useState("name");
+  const [searchValue, setSearchValue] = useState("");
+
   const getAuthConfig = () => {
     const token = localStorage.getItem('token');
-    if (!token) return {};
-    return { 'Authorization': `Bearer ${token}` };
+    if (!token) {
+      setError("No authentication token found. Please login again.");
+      navigate('/login');
+      throw new Error("No token");
+    }
+    return {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    };
   };
 
   useEffect(() => {
-    fetchDepartments();
-  }, [retryCount]);
+    fetchCycles();
+    fetchLineManagers();
+  }, []);
 
-  useEffect(() => {
-    if (selectedDepartment) {
-      fetchEvaluators(selectedDepartment);
-    } else {
-      setEvaluators([]);
+  const fetchCycles = async () => {
+    try {
+      const config = getAuthConfig();
+      const response = await axios.get('http://localhost:5000/api/cycles', config);
+      const cyclesData = Array.isArray(response.data) ? response.data : [];
+      setCycles(cyclesData);
+      if (cyclesData.length > 0) {
+        setSelectedCycleId(cyclesData[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching cycles:', error);
+      toast.error('Failed to fetch evaluation cycles');
     }
-  }, [selectedDepartment]);
-
-  const validateDepartmentResponse = (response) => {
-    if (!response || !response.data) {
-      throw new Error('Invalid server response');
-    }
-
-    if (Array.isArray(response.data)) {
-      return response.data;
-    }
-
-    if (response.data.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-
-    if (response.data.departments && Array.isArray(response.data.departments)) {
-      return response.data.departments;
-    }
-
-    throw new Error('Invalid departments data format');
   };
 
-  const validateEvaluatorResponse = (response) => {
-    if (!response || !response.data) {
-      throw new Error('Invalid server response');
-    }
-
-    if (Array.isArray(response.data)) {
-      return response.data;
-    }
-
-    if (response.data.data && Array.isArray(response.data.data)) {
-      return response.data.data;
-    }
-
-    if (response.data.employees && Array.isArray(response.data.employees)) {
-      return response.data.employees;
-    }
-
-    throw new Error('Invalid evaluators data format');
-  };
-
-  const fetchDepartments = async () => {
+  const fetchLineManagers = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await axios.get('http://localhost:5000/api/departments', {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ...getAuthConfig()
-        }
-      });
+      const config = getAuthConfig();
+      const response = await axios.get('http://localhost:5000/api/employees', config);
 
-      console.log('Department Response:', response.data);
+      console.log('Fetched employees:', response.data);
+      
+      // Filter only line managers
+      const managers = (response.data || []).filter(emp => emp.role === 'line-manager');
+      setLineManagers(managers);
+    } catch (err) {
+      console.error('Error fetching line managers:', err);
 
-      const departmentsData = validateDepartmentResponse(response);
-
-      console.log('Validated departments data:', departmentsData);
-      console.log('Departments data length:', departmentsData.length);
-      if (departmentsData.length > 0) {
-        console.log('First department object:', departmentsData[0]);
-        console.log('Department fields:', Object.keys(departmentsData[0]));
-      }
-
-      if (departmentsData.length === 0) {
-        setError('No departments found. Please contact your administrator.');
-        setDepartments([]);
+      if (err.response?.status === 401) {
+        setError("Session expired. Please login again.");
+        navigate('/login');
       } else {
-        console.log('Setting departments state with:', departmentsData);
-        setDepartments(departmentsData);
+        setError('Failed to fetch line managers');
       }
-    } catch (error) {
-      console.error('Error fetching departments:', error);
-      let errorMessage = 'Failed to fetch departments';
-
-      if (error.response) {
-        errorMessage = error.response.data?.message || error.response.statusText || errorMessage;
-      } else if (error.request) {
-        errorMessage = 'No response from server. Please check your connection.';
-      } else {
-        errorMessage = error.message || errorMessage;
-      }
-
-      setError(errorMessage);
-      toast.error(errorMessage);
-      setDepartments([]);
+      setLineManagers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchEvaluators = async (departmentCode) => {
-    try {
-      setLoadingEvaluators(true);
-      setError(null);
+  const handleRowClick = (manager) => {
+    setSelectedLineManager(manager);
+  };
 
-      const response = await axios.get(
-        'http://localhost:5000/api/employees/role/Line%20Manager',
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            ...getAuthConfig()
-          }
+  const handleEvaluate = () => {
+    if (!selectedCycleId) {
+      toast.error('Please select an evaluation cycle first');
+      return;
+    }
+    if (selectedLineManager) {
+      navigate(`/evaluate-linemanager/${selectedLineManager.id}`, {
+        state: {
+          lineManagerId: selectedLineManager.id,
+          lineManagerName: `${selectedLineManager.first_name} ${selectedLineManager.last_name}`,
+          lineManagerEmail: selectedLineManager.email,
+          department: selectedLineManager.department_name,
+          designation: selectedLineManager.designation,
+          cycleId: selectedCycleId,
+          cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name
         }
-      );
-
-      console.log('Evaluator Response:', response.data);
-
-      const allEvaluators = validateEvaluatorResponse(response);
-
-      const evaluatorsData = allEvaluators.filter(
-        evaluator => evaluator.Department_code === departmentCode
-      );
-
-      if (evaluatorsData.length === 0) {
-        setError('No evaluators found in this department');
-        setEvaluators([]);
-        return;
-      }
-
-      const evaluatorsWithStatus = await Promise.all(
-        evaluatorsData.map(async (evaluator) => {
-          try {
-            const evalResponse = await axios.get(
-              `http://localhost:5000/api/evaluations/completed/${evaluator.Employee_id}`,
-              {
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                  ...getAuthConfig()
-                }
-              }
-            );
-
-            console.log('Evaluation Response:', evalResponse.data);
-
-            if (!evalResponse.data?.evaluations || evalResponse.data.evaluations.length === 0) {
-              return {
-                ...evaluator,
-                last_evaluation_date: null,
-                last_evaluation_score: null
-              };
-            }
-
-            const latestEvaluation = evalResponse.data.evaluations[0];
-
-            const totalScore = evalResponse.data.evaluations.reduce((sum, evaluation) => {
-              return sum + ((Number(evaluation.weightage) || 0) / 100) * (Number(evaluation.score) || 0);
-            }, 0);
-
-            return {
-              ...evaluator,
-              last_evaluation_date: latestEvaluation.evaluation_date || null,
-              last_evaluation_score: Math.round(totalScore)
-            };
-          } catch (error) {
-            console.warn(`Could not fetch evaluation for ${evaluator.Employee_id}:`, error);
-            return {
-              ...evaluator,
-              last_evaluation_date: null,
-              last_evaluation_score: null
-            };
-          }
-        })
-      );
-
-      setEvaluators(evaluatorsWithStatus);
-    } catch (error) {
-      console.error('Error fetching evaluators:', error);
-      let errorMessage = 'Failed to fetch evaluators';
-
-      if (error.response) {
-        errorMessage = error.response.data?.message || error.response.statusText || errorMessage;
-      } else if (error.request) {
-        errorMessage = 'No response from server. Please check your connection.';
-      } else {
-        errorMessage = error.message || errorMessage;
-      }
-
-      setError(errorMessage);
-      toast.error(errorMessage);
-      setEvaluators([]);
-    } finally {
-      setLoadingEvaluators(false);
+      });
+    } else {
+      toast.error('Please select a line manager first');
     }
   };
 
-  const fetchEmployeesForEvaluator = async (evaluatorId) => {
-    try {
-      setLoadingEmployees(true);
-      setError(null);
+  // Filter line managers based on search
+  const filteredLineManagers = lineManagers.filter(manager => {
+    if (!searchValue.trim()) return true;
 
-      // Get the evaluator's department code
-      const evaluator = evaluators.find(e => e.Employee_id === evaluatorId);
-      if (!evaluator) {
-        setError('Evaluator not found');
-        setEmployees([]);
-        return;
-      }
+    const value = searchValue.toLowerCase();
 
-      // Fetch employees in the same department
-      const response = await axios.get(
-        `http://localhost:5000/api/employees/department/${evaluator.Department_code}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            ...getAuthConfig()
-          }
-        }
-      );
+    switch (searchType) {
+      case "name":
+        return `${manager.first_name} ${manager.last_name}`.toLowerCase().includes(value);
 
-      console.log('Employees Response:', response.data);
+      case "department":
+        return manager.department_name?.toLowerCase().includes(value);
 
-      if (!response.data || !Array.isArray(response.data)) {
-        setError('No employees found in this department');
-        setEmployees([]);
-        return;
-      }
-
-      // Filter out the line manager from the employees list
-      const employeesData = response.data.filter(emp => emp.Employee_id !== evaluatorId);
-
-      // Fetch evaluation status for each employee
-      const employeesWithStatus = await Promise.all(
-        employeesData.map(async (employee) => {
-          try {
-            const evalResponse = await axios.get(
-              `http://localhost:5000/api/evaluations/completed/${employee.Employee_id}`,
-              {
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                  ...getAuthConfig()
-                }
-              }
-            );
-
-            if (!evalResponse.data?.evaluations || evalResponse.data.evaluations.length === 0) {
-              return {
-                ...employee,
-                last_evaluation_date: null,
-                last_evaluation_score: null
-              };
-            }
-
-            const latestEvaluation = evalResponse.data.evaluations[0];
-
-            const totalScore = evalResponse.data.evaluations.reduce((sum, evaluation) => {
-              return sum + ((Number(evaluation.weightage) || 0) / 100) * (Number(evaluation.score) || 0);
-            }, 0);
-
-            return {
-              ...employee,
-              last_evaluation_date: latestEvaluation.evaluation_date || null,
-              last_evaluation_score: Math.round(totalScore)
-            };
-          } catch (error) {
-            console.warn(`Could not fetch evaluation for ${employee.Employee_id}:`, error);
-            return {
-              ...employee,
-              last_evaluation_date: null,
-              last_evaluation_score: null
-            };
-          }
-        })
-      );
-
-      setEmployees(employeesWithStatus);
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-      let errorMessage = 'Failed to fetch employees';
-
-      if (error.response) {
-        errorMessage = error.response.data?.message || error.response.statusText || errorMessage;
-      } else if (error.request) {
-        errorMessage = 'No response from server. Please check your connection.';
-      } else {
-        errorMessage = error.message || errorMessage;
-      }
-
-      setError(errorMessage);
-      toast.error(errorMessage);
-      setEmployees([]);
-    } finally {
-      setLoadingEmployees(false);
-    }
-  };
-
-  const handleDepartmentChange = (e) => {
-    setSelectedDepartment(e.target.value);
-    setSearchTerm('');
-    setError(null);
-    setSelectedEvaluator(null);
-    setEmployees([]);
-  };
-
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
-    setError(null);
-  };
-
-  const handleEvaluate = (evaluator) => {
-    navigate(`/evaluate-linemanager/${evaluator.Employee_id}`);
-  };
-
-  const handleEvaluateEmployee = (employee) => {
-    navigate(`/evaluate-employee/${employee.Employee_id}`, {
-      state: {
-        employee,
-        evaluator: selectedEvaluator,
-        returnPath: '/linemanager-evaluation'
-      }
-    });
-  };
-
-  const filteredEvaluators = evaluators.filter(evaluator => {
-    const fullName = `${evaluator.First_name} ${evaluator.Last_name}`.toLowerCase();
-    return fullName.includes(searchTerm.toLowerCase());
-  });
-
-  const filteredEmployees = employees.filter(employee => {
-    const fullName = `${employee.First_name} ${employee.Last_name}`.toLowerCase();
-    return fullName.includes(searchTerm.toLowerCase());
-  });
-
-  const getEvaluationStatus = (evaluator) => {
-    if (!evaluator.last_evaluation_date) return 'Not Evaluated';
-    const lastEvalDate = new Date(evaluator.last_evaluation_date);
-    const today = new Date();
-    const monthsSinceLastEval = (today.getFullYear() - lastEvalDate.getFullYear()) * 12 +
-      (today.getMonth() - lastEvalDate.getMonth());
-
-    if (monthsSinceLastEval >= 6) return 'Due';
-    return 'Up to Date';
-  };
-
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'Not Evaluated':
-        return 'lm-eval-status not-evaluated';
-      case 'Due':
-        return 'lm-eval-status due';
-      case 'Up to Date':
-        return 'lm-eval-status up-to-date';
       default:
-        return 'lm-eval-status';
+        return true;
     }
-  };
+  });
 
-  if (loading && !departments.length) {
-    return (
-      <div className="lm-eval-container">
-        <div className="lm-eval-loading">
-          <div className="lm-eval-loading-spinner"></div>
-          <p>Loading departments...</p>
-        </div>
-      </div>
-    );
+  if (loading) {
+    return <div className="loading">Loading line managers...</div>;
   }
 
-  if (error && !selectedDepartment) {
-    return (
-      <div className="lm-eval-container">
-        <div className="lm-eval-error">
-          <p>{error}</p>
-          <button onClick={handleRetry} className="lm-eval-retry-btn">
-            Retry
-          </button>
-        </div>
-      </div>
-    );
+  if (error) {
+    return <div className="error">{error}</div>;
   }
 
   return (
-    <div className="lm-eval-container" style={{ maxWidth: '100%', width: '100%' }}>
-      <div className="lm-eval-breadcrumb">
-        <span>Performance Management</span>
-        <span className="separator">›</span>
-        <span className="active">Line Manager Evaluation</span>
+    <div className="lm-eval-container">
+      {/* Evaluation Cycle Selection */}
+      <div style={{ marginBottom: '20px' }}>
+        <select
+          className="cycle-select"
+          value={selectedCycleId}
+          onChange={(e) => setSelectedCycleId(e.target.value)}
+          style={{ 
+            padding: '8px 12px', 
+            borderRadius: '4px', 
+            border: '1px solid #ddd',
+            fontSize: '14px',
+            color: '#6b7280',
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+            outline: 'none',
+            minWidth: '250px'
+          }}
+        >
+          <option value="">Select Evaluation Cycle</option>
+          {cycles.map(cycle => (
+            <option key={cycle.id} value={cycle.id}>{cycle.name || cycle.cycle_name}</option>
+          ))}
+        </select>
       </div>
 
-      <div className="lm-eval-content" style={{ maxWidth: '100%', width: '100%' }}>
-        <div className="lm-eval-header">
-          <h2>Line Manager Evaluation</h2>
+      {/* Search Bar */}
+      <div className="search-container-main" style={{ marginBottom: '20px' }}>
+        <div className="search-input-wrapper">
+          <input
+            type="text"
+            className="search-input-field"
+            placeholder={`Search by ${searchType}...`}
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+          />
         </div>
 
-        <div className="lm-eval-filters">
-          <div className="lm-eval-filter-group">
-            <label>Department</label>
-            <select
-              value={selectedDepartment}
-              onChange={handleDepartmentChange}
-              className="lm-eval-select"
-              disabled={loading}
-            >
-              <option value="">Select Department</option>
-              {departments && departments.map((dept, index) => (
-                <option
-                  key={dept.department_code || dept.Department_code || dept.id || index}
-                  value={dept.department_code || dept.Department_code}
-                >
-                  {dept.department_name || dept.Department_name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="search-type-buttons">
+          <button
+            className={`search-type-btn ${searchType === 'name' ? 'active' : ''}`}
+            onClick={() => setSearchType('name')}
+          >
+            Name
+          </button>
+          <button
+            className={`search-type-btn ${searchType === 'department' ? 'active' : ''}`}
+            onClick={() => setSearchType('department')}
+          >
+            Department
+          </button>
         </div>
-
-        {selectedDepartment ? (
-          <div className="lm-eval-departments-list">
-            <div className="lm-eval-department-section">
-              {loadingEvaluators ? (
-                <div className="lm-eval-loading">
-                  <div className="lm-eval-loading-spinner"></div>
-                  <p>Loading evaluators...</p>
-                </div>
-              ) : error ? (
-                <div className="lm-eval-error">
-                  <p>{error}</p>
-                  <button onClick={() => fetchEvaluators(selectedDepartment)} className="lm-eval-retry-btn">
-                    Retry
-                  </button>
-                </div>
-              ) : (
-                <div className="lm-eval-table-wrapper" style={{ maxWidth: '100%', width: '100%' }}>
-                  <table className="lm-eval-table" style={{ width: '100%' }}>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Score</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredEvaluators.length > 0 ? (
-                        filteredEvaluators.map(evaluator => {
-                          let status = 'Not Evaluated';
-                          if (evaluator.last_evaluation_score && evaluator.last_evaluation_score > 0) {
-                            status = 'Completed';
-                          }
-                          return (
-                            <tr key={evaluator.Employee_id}>
-                              <td>{`${evaluator.First_name} ${evaluator.Last_name}`}</td>
-                              <td>{evaluator.Email}</td>
-                              <td>{evaluator.Role}</td>
-                              <td>
-                                {evaluator.last_evaluation_score !== null && evaluator.last_evaluation_score !== undefined
-                                  ? evaluator.last_evaluation_score
-                                  : 'N/A'}
-                              </td>
-                              <td>
-                                <span className={status === 'Completed' ? 'lm-eval-status lm-eval-status-completed' : 'lm-eval-status lm-eval-status-pending'}>
-                                  {status}
-                                </span>
-                              </td>
-                              <td>
-                                <button
-                                  className="lm-eval-action-btn"
-                                  onClick={() => handleEvaluate(evaluator)}
-                                >
-                                  Evaluate
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ) : (
-                        <tr><td colSpan="6">No evaluators found</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="lm-eval-no-department">
-            Please select a department to view evaluators
-          </div>
-        )}
       </div>
+
+      {lineManagers.length === 0 ? (
+        <div className="empty-state">
+          <p className="empty-message-dept">There are no Line Managers yet</p>
+        </div>
+      ) : (
+        <>
+          <div className="lm-table-container-scroll">
+            <table className="employees-table">
+              <thead>
+                <tr>
+                  <th>SR No</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Department</th>
+                  <th>Designation</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredLineManagers.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: "center" }}>
+                      No line manager found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLineManagers.map((manager, index) => (
+                    <tr
+                      key={manager.id}
+                      onClick={() => handleRowClick(manager)}
+                      className={
+                        selectedLineManager?.id === manager.id
+                          ? "selected-row"
+                          : ""
+                      }
+                      style={{ cursor: "pointer" }}
+                    >
+                      <td>{index + 1}</td>
+                      <td>{manager.first_name} {manager.last_name}</td>
+                      <td><a href={`mailto:${manager.email}`}>{manager.email}</a></td>
+                      <td>{manager.department_name || "N/A"}</td>
+                      <td>{manager.designation || "N/A"}</td>
+                      <td>
+                        <span className={`status-badge ${manager.is_active ? 'active' : 'inactive'}`}>
+                          {manager.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <button
+            className="organization-view-details-btn"
+            onClick={handleEvaluate}
+            disabled={!selectedLineManager}
+            style={{
+              opacity: selectedLineManager ? 1 : 0.5,
+              cursor: selectedLineManager ? 'pointer' : 'not-allowed',
+              position: "fixed",
+              bottom: 30,
+              right: 20,
+            }}
+          >
+            Evaluate Line Manager
+          </button>
+        </>
+      )}
     </div>
   );
 };
 
-export default LineManagerEvaluationScreen; 
+export default LineManagerEvaluationScreen;

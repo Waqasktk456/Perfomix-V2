@@ -18,6 +18,7 @@ const CreateMatrix = () => {
   const matrixToEdit = location.state?.matrixToEdit;
 
   const [matrixName, setMatrixName] = useState("");
+  const [matrixType, setMatrixType] = useState("staff");
   const [selectedParameters, setSelectedParameters] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -39,8 +40,12 @@ const CreateMatrix = () => {
     if (location.state?.selectedParameters) {
       setSelectedParameters(location.state.selectedParameters);
       setMatrixName(location.state.matrixName || "");
+      setMatrixType(location.state.matrixType || "staff");
     } else if (isEditMode && matrixToEdit) {
+      console.log('Loading matrix for edit:', matrixToEdit);
+      console.log('Matrix type from DB:', matrixToEdit.matrix_type);
       setMatrixName(matrixToEdit.matrix_name || "");
+      setMatrixType(matrixToEdit.matrix_type || "staff");
       const params = matrixToEdit.parameters.map(p => ({
         parameter_id: p.parameter_id,
         parameter_name: p.parameter_name,
@@ -135,6 +140,7 @@ const CreateMatrix = () => {
       if (isEditMode && matrixToEdit?.matrix_id) {
         await axios.put(`http://localhost:5000/api/matrices/${matrixToEdit.matrix_id}`, {
           matrix_name: matrixName.trim(),
+          matrix_type: matrixType,
           parameters: parametersToSave,
           status
         }, config);
@@ -142,6 +148,7 @@ const CreateMatrix = () => {
       } else {
         await axios.post('http://localhost:5000/api/matrices', {
           matrix_name: matrixName.trim(),
+          matrix_type: matrixType,
           parameters: parametersToSave,
           status
         }, config);
@@ -188,12 +195,41 @@ const CreateMatrix = () => {
           <p className="matrix-subtitle">Build a performance evaluation matrix by selecting parameters and assigning weightages.</p>
 
           <div className="matrix-form">
-            <AddInputField
-              label="Matrix Name"
-              placeholder="e. Engineering Team Annual Review"
-              value={matrixName}
-              onChange={(e) => setMatrixName(e.target.value)}
-            />
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+              <div style={{ flex: '1 1 60%' }}>
+                <AddInputField
+                  label="Matrix Name"
+                  placeholder="e. Engineering Team Annual Review"
+                  value={matrixName}
+                  onChange={(e) => setMatrixName(e.target.value)}
+                />
+              </div>
+
+              <div style={{ flex: '1 1 40%' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#334155', fontSize: '14px' }}>
+                  Matrix Type
+                </label>
+                <select
+                  value={matrixType}
+                  onChange={(e) => setMatrixType(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    color: '#334155',
+                    backgroundColor: 'white',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    height: '42px'
+                  }}
+                >
+                  <option value="staff">Staff Matrix</option>
+                  <option value="line-manager">Line Manager Matrix</option>
+                </select>
+              </div>
+            </div>
 
             {selectedParameters.length > 0 && (
               <div className="weightage-display" style={{ borderLeft: `5px solid ${getWeightageStatusColor()}` }}>

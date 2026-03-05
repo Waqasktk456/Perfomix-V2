@@ -17,6 +17,10 @@ const EmployeePerformanceReport = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [cycles, setCycles] = useState([]);
   const [selectedCycleId, setSelectedCycleId] = useState("");
+  
+  // Search states
+  const [searchType, setSearchType] = useState("name");
+  const [searchValue, setSearchValue] = useState("");
 
   useEffect(() => {
     fetchCycles();
@@ -83,10 +87,24 @@ const EmployeePerformanceReport = () => {
     }
   };
 
-  // Filter employees based on selected tab
+  // Filter employees based on selected tab and search
   const filteredEmployees = employees.filter(emp => {
-    if (selectedTab === "All") return true;
-    return emp.status === selectedTab;
+    // Tab filter
+    if (selectedTab !== "All" && emp.status !== selectedTab) return false;
+    
+    // Search filter
+    if (!searchValue.trim()) return true;
+    
+    const value = searchValue.toLowerCase();
+    
+    switch (searchType) {
+      case "name":
+        return emp.name.toLowerCase().includes(value);
+      case "department":
+        return emp.department?.toLowerCase().includes(value);
+      default:
+        return true;
+    }
   });
 
   const exportToPDF = async () => {
@@ -198,14 +216,22 @@ const EmployeePerformanceReport = () => {
 
   return (
     <div className="performance-report-container">
-      <h2 className="report-title">Employee Performance Report</h2>
-
       <div className="filter-tabs">
         <select
           className="cycle-select"
           value={selectedCycleId}
           onChange={(e) => setSelectedCycleId(e.target.value)}
-          style={{ marginRight: '20px', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+          style={{ 
+            marginRight: '20px', 
+            padding: '6px 10px', 
+            borderRadius: '4px', 
+            border: '1px solid #ddd',
+            fontSize: '14px',
+            color: '#6b7280',
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+            outline: 'none'
+          }}
         >
           <option value="">Select Evaluation Cycle</option>
           {cycles.map(cycle => (
@@ -223,59 +249,110 @@ const EmployeePerformanceReport = () => {
         ))}
       </div>
 
-      <div className="exportt-container">
-        <button
-          className="exportt-report-btn"
-          onClick={() => setShowExportOptions(!showExportOptions)}
-        >
-          Export Report <FaChevronDown />
-        </button>
-        {showExportOptions && (
-          <div className="export-options">
-            <button onClick={exportToPDF}>Export as PDF</button>
-            <button onClick={exportToCSV}>Export as CSV</button>
-            {selectedEmployee && (
-              <button onClick={() => exportIndividualPDF(selectedEmployee)}>
-                Export Selected Employee
-              </button>
-            )}
+      {/* Search Bar and Export Button in same line */}
+      <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', marginBottom: '10px', justifyContent: 'space-between' }}>
+        <div className="search-container-main" style={{ flex: '0 0 auto', maxWidth: '600px', marginBottom: 0 }}>
+          <div className="search-input-wrapper">
+            <input
+              type="text"
+              className="search-input-field"
+              placeholder={`Search by ${searchType}...`}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+            />
           </div>
-        )}
+
+          <div className="search-type-buttons">
+            <button
+              type="button"
+              className={`search-type-btn ${searchType === 'name' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSearchType('name');
+              }}
+            >
+              Name
+            </button>
+            <button
+              type="button"
+              className={`search-type-btn ${searchType === 'department' ? 'active' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSearchType('department');
+              }}
+            >
+              Department
+            </button>
+          </div>
+        </div>
+
+        <div className="exportt-container" style={{ marginBottom: 0, flex: '0 0 auto', width: 'auto', position: 'relative' }}>
+          <button
+            className="exportt-report-btn"
+            onClick={() => setShowExportOptions(!showExportOptions)}
+          >
+            Export Report <FaChevronDown />
+          </button>
+          {showExportOptions && (
+            <div className="export-options">
+              <button onClick={exportToPDF}>Export as PDF</button>
+              <button onClick={exportToCSV}>Export as CSV</button>
+              {selectedEmployee && (
+                <button onClick={() => exportIndividualPDF(selectedEmployee)}>
+                  Export Selected Employee
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      <table className="report-table">
-        <thead>
-          <tr>
-            <th>SR NO</th>
-            <th>Profile</th>
-            <th>Employee Name </th>
-            <th>Department </th>
-            <th>Designation</th>
-            <th>Evaluation Status</th>
-            <th>Score</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredEmployees.map((emp, index) => (
-            <tr
-              key={index}
-              className={selectedEmployee && selectedEmployee.id === emp.id && selectedEmployee._rowIndex === index ? 'highlighted-row' : ''}
-              onClick={() => setSelectedEmployee({ ...emp, _rowIndex: index })}
-              style={{ cursor: 'pointer' }}
-            >
-              <td>{index + 1}</td>
-              <td>{renderProfileImage(emp)}</td>
-              <td>{emp.name}</td>
-              <td>{emp.department}</td>
-              <td>{emp.designation}</td>
-              <td className={emp.status === "Complete" ? "status-complete" : "status-pending"}>{emp.status}</td>
-              <td>{emp.score}</td>
-              <td className={emp.action === "Download Report" ? "action-download" : "action-reminder"}>{emp.action}</td>
+      {/* Table with fixed height and scroll */}
+      <div className="table-container-scroll">
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th>SR NO</th>
+              <th>Profile</th>
+              <th>Employee Name </th>
+              <th>Department </th>
+              <th>Designation</th>
+              <th>Evaluation Status</th>
+              <th>Score</th>
+              <th>Action</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredEmployees.length === 0 ? (
+              <tr>
+                <td colSpan="8" style={{ textAlign: "center", padding: "40px" }}>
+                  No employees found
+                </td>
+              </tr>
+            ) : (
+              filteredEmployees.map((emp, index) => (
+                <tr
+                  key={index}
+                  className={selectedEmployee && selectedEmployee.id === emp.id && selectedEmployee._rowIndex === index ? 'highlighted-row' : ''}
+                  onClick={() => setSelectedEmployee({ ...emp, _rowIndex: index })}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td>{index + 1}</td>
+                  <td>{renderProfileImage(emp)}</td>
+                  <td>{emp.name}</td>
+                  <td>{emp.department}</td>
+                  <td>{emp.designation}</td>
+                  <td className={emp.status === "Complete" ? "status-complete" : "status-pending"}>{emp.status}</td>
+                  <td>{emp.score}</td>
+                  <td className={emp.action === "Download Report" ? "action-download" : "action-reminder"}>{emp.action}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <div className="bottom-buttons">
         <button

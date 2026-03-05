@@ -46,6 +46,35 @@ const EvaluationCycles = () => {
     }
   };
 
+  const handleComplete = async (cycleId) => {
+    if (!window.confirm("Mark this cycle as closed? This action cannot be undone.")) return;
+    try {
+      const config = getAuthConfig();
+      await axios.post(`http://localhost:5000/api/cycles/${cycleId}/complete`, {}, config);
+      toast.success("Cycle marked as closed");
+      fetchCycles();
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to close cycle");
+    }
+  };
+
+  const handleDelete = async (cycleId, cycleStatus) => {
+    if (cycleStatus === 'active') {
+      toast.error("Cannot delete active cycle. Please complete it first.");
+      return;
+    }
+    if (!window.confirm("Delete this cycle? All related data will be removed. This action cannot be undone.")) return;
+    try {
+      const config = getAuthConfig();
+      await axios.delete(`http://localhost:5000/api/cycles/${cycleId}`, config);
+      toast.success("Cycle deleted successfully");
+      fetchCycles();
+      if (selectedCycle?.id === cycleId) setSelectedCycle(null);
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to delete cycle");
+    }
+  };
+
   const handleRowClick = (cycle) => {
     setSelectedCycle(cycle);
   };
@@ -78,24 +107,24 @@ const EvaluationCycles = () => {
       <table>
         <thead>
           <tr>
-            <th>ID</th>
+            <th>SR No</th>
             <th>Cycle Name</th>
             <th>Period</th>
             <th>Status</th>
             <th>Teams Assigned</th>
-            <th>Actions</th>
+            <th className="actions-header">Actions</th>
           </tr>
         </thead>
         <tbody>
           {cycles.length > 0 ? (
-            cycles.map((cycle) => (
+            cycles.map((cycle, index) => (
               <tr
                 key={cycle.id}
                 className={selectedCycle?.id === cycle.id ? "selected-row" : ""}
                 onClick={() => handleRowClick(cycle)}
                 style={{ cursor: "pointer" }}
               >
-                <td>{cycle.id}</td>
+                <td>{index + 1}</td>
                 <td>{cycle.name}</td>
                 <td>
                   {new Date(cycle.start_date).toLocaleDateString()} -{" "}
@@ -108,7 +137,7 @@ const EvaluationCycles = () => {
                 </td>
                 <td>{cycle.assigned_teams_count || 0}</td>
                 <td className="actions-cell" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => handleEdit(cycle)} className="icon-btn">
+                  <button onClick={() => handleEdit(cycle)} className="icon-btn" title="Edit">
                     <img src={EditIcon} alt="Edit" className="icon" />
                   </button>
                   <span className="divider">/</span>
@@ -119,11 +148,38 @@ const EvaluationCycles = () => {
                         className="icon-btn activate-btn"
                         title="Activate Cycle"
                       >
-                        ✅
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="12" cy="12" r="10" fill="#10B981" stroke="#059669" strokeWidth="2"/>
+                          <path d="M8 12L11 15L16 9" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
                       </button>
                       <span className="divider">/</span>
                     </>
                   )}
+                  {cycle.status === "active" && (
+                    <>
+                      <button
+                        onClick={() => handleComplete(cycle.id)}
+                        className="icon-btn complete-btn"
+                        title="Mark as Closed"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="3" y="3" width="18" height="18" rx="3" fill="#3B82F6" stroke="#2563EB" strokeWidth="2"/>
+                          <path d="M7 12L10.5 15.5L17 9" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                      <span className="divider">/</span>
+                    </>
+                  )}
+                  <button 
+                    onClick={() => handleDelete(cycle.id, cycle.status)} 
+                    className="icon-btn delete-btn"
+                    title="Delete Cycle"
+                    disabled={cycle.status === 'active'}
+                    style={{ opacity: cycle.status === 'active' ? 0.5 : 1 }}
+                  >
+                    <img src={DeleteIcon} alt="Delete" className="icon" />
+                  </button>
                 </td>
               </tr>
             ))

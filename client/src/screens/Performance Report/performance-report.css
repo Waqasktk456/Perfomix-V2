@@ -1,29 +1,16 @@
 @import "../../styles/theme.css";
 
 .performance-report-container {
-
   margin-top: 0;
-  padding-top: 0;
-  /* Ensure no extra padding at the top */
+  padding-top: 10px;
 }
-
-.report-title {
-  text-align: center;
-  font-size: 24px;
-  font-weight: bold;
-  color: var(--primary-color);
-  margin-top: 0;
-  /* Remove unnecessary top margin */
-  margin-bottom: 20px;
-}
-
 
 .filter-tabs {
   display: flex;
   gap: 20px;
   border-bottom: 2px solid #e5e7eb;
   padding-bottom: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .filter-tabs span {
@@ -204,4 +191,97 @@
   justify-content: center;
   font-weight: bold;
   font-size: 16px;
+}
+
+/* Table container with fixed height and scroll */
+.table-container-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.table-container-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.table-container-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.table-container-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.table-container-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.table-container-scroll .report-table {
+  margin-top: 0;
+  border-radius: 0;
+}
+
+.table-container-scroll .report-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f1f5f9;
+}
+
+/* Search container styles */
+.search-container-main {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 20px;
+  min-width: 500px;
+}
+
+.search-input-wrapper {
+  flex: 1;
+  min-width: 250px;
+}
+
+.search-input-field {
+  width: 100%;
+  padding: 10px 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.search-input-field:focus {
+  border-color: var(--primary-color);
+}
+
+.search-type-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.search-type-btn {
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+  pointer-events: auto;
+}
+
+.search-type-btn:hover {
+  background: #f8fafc;
+}
+
+.search-type-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
 }

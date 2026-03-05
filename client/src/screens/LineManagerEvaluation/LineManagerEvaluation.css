@@ -1,5 +1,5 @@
 .lm-eval-container {
-  padding: 32px;
+  padding: 0px 32px 32px 32px;
   max-width: 1300px;
   margin: 0 auto;
 }
@@ -198,4 +198,43 @@
   color: #666;
   font-size: 16px;
   font-family: var(--font-primary);
+}
+
+/* Table container with fixed height and scroll */
+.lm-table-container-scroll {
+  max-height: 450px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.lm-table-container-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lm-table-container-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.lm-table-container-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.lm-table-container-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.lm-table-container-scroll .employees-table {
+  margin-top: 0;
+  border-radius: 0;
+}
+
+.lm-table-container-scroll .employees-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f8f9fa;
 } 

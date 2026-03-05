@@ -107,6 +107,7 @@ const Teams = () => {
           <table className="departments-table">
             <thead>
               <tr>
+                <th>SR No</th>
                 <th>Team Name</th>
                 <th>Team Department</th>
                 <th>No of Employees</th>
@@ -116,8 +117,9 @@ const Teams = () => {
             </thead>
             <tbody>
               {
-                teams.map((team) => (
+                teams.map((team, index) => (
                   <tr key={team.id}>
+                    <td>{index + 1}</td>
                     <td>{team.team_name}</td>
                     <td>{team.department_name || 'N/A'}</td>
                     <td>{team.number_of_members}</td>

@@ -86,19 +86,28 @@ export const generateProfessionalPDF = async (data, type) => {
             };
 
             const orgLevel = getLevel(summary.average_score);
+            
+            // Calculate distribution percentages
+            const totalCompleted = summary.completed || 1;
+            const distWithPercent = distribution.map(d => ({
+                ...d,
+                percentage: Math.round((d.count / totalCompleted) * 100)
+            }));
 
             html = `
-                <div style="font-family: 'Inter', sans-serif; color: #1E293B; max-width: 800px; margin: 0 auto; background: white;">
-                    <!-- Cover Page / Header -->
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0F172A; padding-bottom: 20px; margin-bottom: 30px;">
-                        <div>
-                            <h1 style="font-size: 24px; font-weight: 800; color: #0F172A; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">${header.organization_name}</h1>
-                            <h2 style="font-size: 16px; font-weight: 500; color: #475569; margin: 5px 0 0 0;">Organization Performance Report</h2>
-                        </div>
-                        <div style="text-align: right; font-size: 11px; color: #64748B;">
-                            <div><strong>Cycle:</strong> ${header.cycle_name}</div>
-                            <div><strong>Generated:</strong> ${timestamp}</div>
-                        </div>
+                <div style="font-family: 'Inter', sans-serif; color: #1E293B; max-width: 800px; margin: 0 auto; background: white; padding: 40px;">
+                    
+                    <!-- COVER PAGE -->
+                    <div style="text-align: center; padding: 100px 0; border-bottom: 3px solid #0F172A; margin-bottom: 50px;">
+                        <div style="font-size: 14px; color: #64748B; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px;">OFFICIAL REPORT</div>
+                        <h1 style="font-size: 36px; font-weight: 800; color: #0F172A; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 1px;">ORGANIZATION</h1>
+                        <h1 style="font-size: 36px; font-weight: 800; color: #003f88; margin: 0 0 30px 0; text-transform: uppercase; letter-spacing: 1px;">PERFORMANCE REPORT</h1>
+                        <div style="width: 100px; height: 3px; background: #E87722; margin: 30px auto;"></div>
+                        <div style="font-size: 18px; color: #334155; margin: 30px 0 10px 0; font-weight: 600;">${header.organization_name}</div>
+                        <div style="font-size: 14px; color: #64748B; margin: 5px 0;">Evaluation Cycle: ${header.cycle_name}</div>
+                        <div style="font-size: 14px; color: #64748B; margin: 5px 0;">Period: ${new Date(header.start_date).toLocaleDateString()} - ${new Date(header.end_date).toLocaleDateString()}</div>
+                        <div style="font-size: 12px; color: #94A3B8; margin-top: 40px;">Report Generated: ${timestamp}</div>
+                        <div style="font-size: 12px; color: #94A3B8; margin-top: 5px;">Total Employees Evaluated: ${summary.total_employees}</div>
                     </div>
 
                     <!-- Executive Summary -->
