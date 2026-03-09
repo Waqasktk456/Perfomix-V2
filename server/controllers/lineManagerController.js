@@ -2,6 +2,179 @@
 const db = require('../config/db');
 const NotificationService = require('../services/notificationService');
 
+exports.checkLineManagerCompletion = async (req, res) => {
+  try {
+    const { lineManagerId, cycleId } = req.params;
+
+    if (!lineManagerId || !cycleId) {
+      return res.status(400).json({
+        success: false,
+        message: "Line Manager ID and Cycle ID are required"
+      });
+    }
+
+    // Get all evaluations assigned to this line manager in this cycle
+    const [evaluations] = await db.query(`
+      SELECT 
+        COUNT(*) as total_evaluations,
+        SUM(CASE WHEN ev.status = 'completed' THEN 1 ELSE 0 END) as completed_evaluations
+      FROM cycle_team_assignments cta
+      JOIN evaluations ev ON ev.cycle_team_assignment_id = cta.id
+      WHERE cta.line_manager_id = ? 
+        AND cta.cycle_id = ?
+    `, [lineManagerId, cycleId]);
+
+    const totalEvaluations = evaluations[0]?.total_evaluations || 0;
+    const completedEvaluations = evaluations[0]?.completed_evaluations || 0;
+    const pendingCount = totalEvaluations - completedEvaluations;
+    const allCompleted = totalEvaluations > 0 && pendingCount === 0;
+
+    res.json({
+      success: true,
+      allCompleted,
+      pendingCount,
+      totalEvaluations,
+      completedEvaluations
+    });
+
+  } catch (error) {
+    console.error('Error checking line manager completion:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check completion status',
+      error: error.message
+    });
+  }
+};
+
+exports.getTeamsPerformance = async (req, res) => {
+  try {
+    const { lineManagerId, cycleId } = req.params;
+
+    if (!lineManagerId || !cycleId) {
+      return res.status(400).json({
+        success: false,
+        message: "Line Manager ID and Cycle ID are required"
+      });
+    }
+
+    // Get all teams assigned to this line manager in this cycle with performance data
+    const [teams] = await db.query(`
+      SELECT 
+        cta.id AS assignment_id,
+        cta.team_id,
+        cta.matrix_id,
+        t.team_name,
+        t.team_description,
+        pm.matrix_name,
+        d.Department_name AS department_name,
+        ec.start_date,
+        ec.end_date,
+        (SELECT COUNT(*) 
+         FROM team_members tm 
+         WHERE tm.team_id = cta.team_id) AS employee_count,
+        (SELECT COUNT(*) 
+         FROM evaluations ev 
+         WHERE ev.cycle_team_assignment_id = cta.id 
+           AND ev.status = 'completed') AS completed_evaluations,
+        (SELECT COUNT(*) 
+         FROM evaluations ev 
+         WHERE ev.cycle_team_assignment_id = cta.id) AS total_evaluations,
+        (SELECT AVG(ev.overall_score)
+         FROM evaluations ev
+         WHERE ev.cycle_team_assignment_id = cta.id
+           AND ev.status = 'completed'
+           AND ev.overall_score IS NOT NULL) AS avg_performance_score,
+        (SELECT CONCAT(e.first_name, ' ', e.last_name)
+         FROM evaluations ev
+         JOIN employees e ON ev.employee_id = e.id
+         WHERE ev.cycle_team_assignment_id = cta.id
+           AND ev.status = 'completed'
+           AND ev.overall_score IS NOT NULL
+         ORDER BY ev.overall_score DESC
+         LIMIT 1) AS top_performer_name,
+        (SELECT e.designation
+         FROM evaluations ev
+         JOIN employees e ON ev.employee_id = e.id
+         WHERE ev.cycle_team_assignment_id = cta.id
+           AND ev.status = 'completed'
+           AND ev.overall_score IS NOT NULL
+         ORDER BY ev.overall_score DESC
+         LIMIT 1) AS top_performer_designation,
+        (SELECT ev.overall_score
+         FROM evaluations ev
+         WHERE ev.cycle_team_assignment_id = cta.id
+           AND ev.status = 'completed'
+           AND ev.overall_score IS NOT NULL
+         ORDER BY ev.overall_score DESC
+         LIMIT 1) AS top_performer_score,
+        (SELECT CONCAT(e.first_name, ' ', e.last_name)
+         FROM evaluations ev
+         JOIN employees e ON ev.employee_id = e.id
+         WHERE ev.cycle_team_assignment_id = cta.id
+           AND ev.status = 'completed'
+           AND ev.overall_score IS NOT NULL
+         ORDER BY ev.overall_score ASC
+         LIMIT 1) AS low_performer_name,
+        (SELECT e.designation
+         FROM evaluations ev
+         JOIN employees e ON ev.employee_id = e.id
+         WHERE ev.cycle_team_assignment_id = cta.id
+           AND ev.status = 'completed'
+           AND ev.overall_score IS NOT NULL
+         ORDER BY ev.overall_score ASC
+         LIMIT 1) AS low_performer_designation,
+        (SELECT ev.overall_score
+         FROM evaluations ev
+         WHERE ev.cycle_team_assignment_id = cta.id
+           AND ev.status = 'completed'
+           AND ev.overall_score IS NOT NULL
+         ORDER BY ev.overall_score ASC
+         LIMIT 1) AS low_performer_score,
+        (SELECT MAX(ev.updated_at)
+         FROM evaluations ev
+         WHERE ev.cycle_team_assignment_id = cta.id) AS last_activity
+      FROM cycle_team_assignments cta
+      JOIN teams t ON cta.team_id = t.id
+      JOIN performance_matrices pm ON cta.matrix_id = pm.id
+      JOIN departments d ON t.department_id = d.id
+      JOIN evaluation_cycles ec ON cta.cycle_id = ec.id
+      WHERE cta.line_manager_id = ?
+        AND cta.cycle_id = ?
+      ORDER BY t.team_name
+    `, [lineManagerId, cycleId]);
+
+    const teamsData = teams.map(team => ({
+      ...team,
+      pending_evaluations: team.total_evaluations - team.completed_evaluations,
+      avg_performance_score: team.avg_performance_score ? parseFloat(team.avg_performance_score) : null,
+      top_performer: team.top_performer_name ? {
+        name: team.top_performer_name,
+        score: parseFloat(team.top_performer_score).toFixed(1),
+        designation: team.top_performer_designation || 'N/A'
+      } : null,
+      low_performer: team.low_performer_name ? {
+        name: team.low_performer_name,
+        score: parseFloat(team.low_performer_score).toFixed(1),
+        designation: team.low_performer_designation || 'N/A'
+      } : null
+    }));
+
+    res.json({
+      success: true,
+      teams: teamsData
+    });
+
+  } catch (error) {
+    console.error('Error fetching teams performance:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch teams performance',
+      error: error.message
+    });
+  }
+};
+
 exports.getMyAssignedTeams = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -614,7 +787,8 @@ exports.submitEvaluation = async (req, res) => {
 exports.getTeamEmployeesForEvaluation = async (req, res) => {
   try {
     const { assignmentId } = req.params;
-    const lineManagerId = req.user.id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
     if (!assignmentId) {
       return res.status(400).json({
@@ -623,7 +797,8 @@ exports.getTeamEmployeesForEvaluation = async (req, res) => {
       });
     }
 
-    const [rows] = await db.query(`
+    // Build query based on user role
+    let query = `
       SELECT 
         ev.id AS evaluation_id,
         ev.employee_id,
@@ -631,6 +806,7 @@ exports.getTeamEmployeesForEvaluation = async (req, res) => {
         e.last_name,
         e.email,
         e.designation,
+        e.Profile_image,
         ev.status AS evaluation_status,
         ev.overall_score,
         COALESCE((
@@ -647,9 +823,20 @@ exports.getTeamEmployeesForEvaluation = async (req, res) => {
       FROM evaluations ev
       JOIN employees e ON ev.employee_id = e.id
       JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
-      WHERE cta.id = ? AND cta.line_manager_id = ?
-      ORDER BY e.First_name, e.Last_name
-    `, [assignmentId, lineManagerId]);
+      WHERE cta.id = ?
+    `;
+
+    const params = [assignmentId];
+
+    // If user is a line manager (not admin), verify they own this assignment
+    if (userRole === 'line-manager') {
+      query += ` AND cta.line_manager_id = ?`;
+      params.push(userId);
+    }
+
+    query += ` ORDER BY e.first_name, e.last_name`;
+
+    const [rows] = await db.query(query, params);
 
     const employees = rows.map(row => ({
       evaluation_id: row.evaluation_id,
@@ -683,6 +870,8 @@ exports.getTeamEmployeesForEvaluation = async (req, res) => {
 };
 
 module.exports = {
+  checkLineManagerCompletion: exports.checkLineManagerCompletion,
+  getTeamsPerformance: exports.getTeamsPerformance,
   getMyAssignedTeams: exports.getMyAssignedTeams,
   getTeamEmployeesForEvaluation: exports.getTeamEmployeesForEvaluation,
   getEvaluationForm: exports.getEvaluationForm,

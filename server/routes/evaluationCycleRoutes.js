@@ -10,8 +10,10 @@ router.use(verifyToken);
 // === Cycle Routes ===
 router.post('/cycles', cycleController.createCycle);
 router.get('/cycles', cycleController.getAllCycles);
+router.get('/cycles/:id/line-managers', cycleController.getLineManagersByCycle);
 router.get('/cycles/:id', cycleController.getCycleById);
 router.put('/cycles/:id', cycleController.updateCycle);
+router.put('/cycles/:id/line-manager-matrix', cycleController.updateLineManagerMatrix);
 router.post('/cycles/:id/activate', cycleController.activateCycle);
 router.post('/cycles/:id/complete', cycleController.completeCycle);
 router.delete('/cycles/:id', cycleController.deleteCycle);
@@ -19,5 +21,6 @@ router.delete('/cycles/:id', cycleController.deleteCycle);
 // === Assignment Routes ===
 router.post('/cycle-assignments', cycleController.assignTeam);
 router.get('/cycle-assignments/:cycleId', cycleController.getAssignments);
+router.delete('/cycle-assignments/:id', cycleController.deleteAssignment);
 
 module.exports = router;

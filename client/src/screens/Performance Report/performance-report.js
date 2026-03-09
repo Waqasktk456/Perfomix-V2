@@ -70,7 +70,7 @@ const EmployeePerformanceReport = () => {
           department: emp.Department_name,
           designation: emp.Designation,
           status: emp.evaluation_status || 'Pending',
-          score: Math.round(emp.overall_weighted_score) || 0,
+          score: Number(emp.overall_weighted_score).toFixed(2) || '0.00',
           action: (emp.evaluation_status === "Complete" || emp.evaluation_status === "Completed") ? "Download Report" : "Send Reminder",
           email: emp.Email,
           role: emp.Role,

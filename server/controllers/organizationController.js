@@ -1,4 +1,5 @@
 const organizationModel = require('../models/organizationModel');
+const PerformanceRating = require('../models/PerformanceRating');
 const mysql = require("mysql2/promise");
 
 // DB Pool - MUST match your database name
@@ -63,6 +64,15 @@ const createOrganization = async (req, res) => {
     );
 
     console.log(`✅ User ${userId} linked to organization ${organizationId}`);
+
+    // 3. Create default performance ratings for the new organization
+    try {
+      await PerformanceRating.createDefaultRatings(organizationId);
+      console.log(`✅ Default performance ratings created for organization ${organizationId}`);
+    } catch (ratingError) {
+      console.error('Error creating default ratings:', ratingError);
+      // Don't fail the organization creation if ratings fail
+    }
 
     res.status(201).json({ 
       success: true,

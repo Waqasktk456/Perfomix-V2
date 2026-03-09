@@ -277,21 +277,40 @@ const TeamPerformance = () => {
                   </span>
                   <button
                     className="action-btn-sm"
-                    onClick={() => navigate("/evaluate-employee", {
-                      state: {
-                        evaluationId: employee.evaluation_id,
-                        employeeId: employee.employee_id,
-                        employeeName: employee.name,
-                        employeeEmail: employee.email,
-                        designation: employee.designation,
-                        profileImage: employee.profile_image,
-                        matrixId: team.matrix_id,
-                        matrixName: team.matrix_name,
-                        teamName: team.team_name,
-                        progress: employee.progress,
-                        totalParams: employee.total_params
+                    onClick={() => {
+                      if (employee.status === 'completed') {
+                        // Navigate to view-performance-report for completed evaluations
+                        navigate("/view-performance-report", {
+                          state: {
+                            employee: {
+                              id: employee.employee_id,
+                              evaluation_id: employee.evaluation_id,
+                              name: employee.name,
+                              email: employee.email,
+                              designation: employee.designation,
+                              profile_image: employee.profile_image
+                            }
+                          }
+                        });
+                      } else {
+                        // Navigate to evaluate-employee for pending evaluations
+                        navigate("/evaluate-employee", {
+                          state: {
+                            evaluationId: employee.evaluation_id,
+                            employeeId: employee.employee_id,
+                            employeeName: employee.name,
+                            employeeEmail: employee.email,
+                            designation: employee.designation,
+                            profileImage: employee.profile_image,
+                            matrixId: team.matrix_id,
+                            matrixName: team.matrix_name,
+                            teamName: team.team_name,
+                            progress: employee.progress,
+                            totalParams: employee.total_params
+                          }
+                        });
                       }
-                    })}
+                    }}
                   >
                     {employee.status === 'completed' ? 'View' : 'Evaluate'}
                   </button>

@@ -81,6 +81,86 @@ exports.getCycleById = async (req, res) => {
   }
 };
 
+exports.getLineManagersByCycle = async (req, res) => {
+  const { id } = req.params;
+  const { organizationId: organization_id } = req.user || {};
+
+  if (!organization_id) {
+    return res.status(401).json({ error: 'Unauthorized: Missing organization' });
+  }
+
+  try {
+    // Get distinct line managers who have been assigned teams in this cycle
+    const [lineManagers] = await db.query(`
+      SELECT DISTINCT
+        e.id,
+        e.first_name,
+        e.last_name,
+        e.email,
+        e.designation,
+        e.is_active,
+        e.role,
+        d.Department_name as department_name,
+        COUNT(DISTINCT cta.id) as assigned_teams_count,
+        SUM(CASE WHEN ev.status = 'completed' THEN 1 ELSE 0 END) as completed_evaluations,
+        COUNT(ev.id) as total_evaluations
+      FROM cycle_team_assignments cta
+      JOIN employees e ON cta.line_manager_id = e.id
+      LEFT JOIN departments d ON e.department_id = d.id
+      LEFT JOIN evaluations ev ON ev.cycle_team_assignment_id = cta.id
+      WHERE cta.cycle_id = ?
+        AND e.organization_id = ?
+      GROUP BY e.id, e.first_name, e.last_name, e.email, e.designation, e.is_active, e.role, d.Department_name
+      ORDER BY e.first_name, e.last_name
+    `, [id, organization_id]);
+
+    res.json(lineManagers);
+  } catch (error) {
+    console.error('Fetch line managers by cycle error:', error);
+    res.status(500).json({ error: 'Failed to fetch line managers' });
+  }
+};
+
+exports.updateLineManagerMatrix = async (req, res) => {
+  const { id } = req.params;
+  const { line_manager_matrix_id } = req.body;
+  const { organizationId: organization_id } = req.user || {};
+
+  console.log('updateLineManagerMatrix called:', { id, line_manager_matrix_id, organization_id });
+
+  if (!organization_id) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!line_manager_matrix_id) {
+    return res.status(400).json({ error: 'Line manager matrix ID is required' });
+  }
+
+  try {
+    const cycle = await EvaluationCycle.findByIdAndOrg(id, organization_id);
+    console.log('Found cycle:', cycle);
+    
+    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (cycle.status !== 'draft') {
+      return res.status(400).json({ error: 'Only draft cycles can be edited' });
+    }
+
+    console.log('Executing UPDATE query...');
+    const [result] = await db.execute(
+      'UPDATE evaluation_cycles SET line_manager_matrix_id = ? WHERE id = ?',
+      [line_manager_matrix_id, id]
+    );
+    
+    console.log('Update result:', result);
+
+    res.json({ message: 'Line manager matrix updated successfully' });
+  } catch (error) {
+    console.error('Update line manager matrix error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Update failed' });
+  }
+};
+
 exports.updateCycle = async (req, res) => {
   const { id } = req.params;
   const { name: cycle_name, start_date, end_date } = req.body;
@@ -143,11 +223,40 @@ exports.activateCycle = async (req, res) => {
       throw new Error(`Teams already in another active cycle: ${conflicting.join(', ')}`);
     }
 
+    // Delete any existing evaluations for this cycle (in case of reactivation)
+    console.log('Deleting existing evaluations for cycle:', cycle_id);
+    
+    try {
+      // Delete in correct order to avoid foreign key issues
+      // Use subquery instead of IN with array
+      await connection.execute(
+        `DELETE FROM evaluation_details 
+         WHERE evaluation_id IN (SELECT id FROM (SELECT id FROM evaluations WHERE cycle_id = ?) AS temp)`,
+        [cycle_id]
+      );
+      
+      await connection.execute(
+        `DELETE FROM evaluation_status 
+         WHERE evaluation_id IN (SELECT id FROM (SELECT id FROM evaluations WHERE cycle_id = ?) AS temp)`,
+        [cycle_id]
+      );
+      
+      await connection.execute(
+        `DELETE FROM evaluations WHERE cycle_id = ?`,
+        [cycle_id]
+      );
+      
+      console.log('Deleted existing evaluations successfully');
+    } catch (deleteError) {
+      console.error('Error deleting existing evaluations:', deleteError);
+      // Continue anyway - might be first activation
+    }
+
     let totalEmployees = 0;
     let totalDetails = 0;
 
     for (const assignment of assignments) {
-      const result = await EvaluationCycle.createEvaluationsForAssignment({
+      const result = await EvaluationCycle.createEvaluationsForAssignment(connection, {
         assignment_id: assignment.assignment_id,
         cycle_id,
         team_id: assignment.team_id,
@@ -167,8 +276,69 @@ exports.activateCycle = async (req, res) => {
       [cycle_id]
     );
 
+    // Create evaluations for line managers if line_manager_matrix_id is set
+    if (cycle.line_manager_matrix_id) {
+      // Get unique line managers who have been assigned teams in this cycle
+      const [lineManagers] = await connection.execute(
+        `SELECT DISTINCT e.id, e.first_name, e.last_name, e.email 
+         FROM employees e
+         INNER JOIN cycle_team_assignments cta ON e.id = cta.line_manager_id
+         WHERE cta.cycle_id = ? AND e.organization_id = ? AND e.role = 'line-manager' AND e.is_active = 1`,
+        [cycle_id, organization_id]
+      );
+
+      console.log(`Found ${lineManagers.length} line managers assigned to teams in this cycle`);
+
+      if (lineManagers.length > 0) {
+        // Get matrix parameters
+        const [matrixParams] = await connection.execute(
+          `SELECT parameter_id, weightage 
+           FROM parameter_matrices 
+           WHERE matrix_id = ?`,
+          [cycle.line_manager_matrix_id]
+        );
+
+        for (const lm of lineManagers) {
+          // Create evaluation record for each line manager
+          const [evalResult] = await connection.execute(
+            `INSERT INTO evaluations 
+             (organization_id, cycle_id, cycle_team_assignment_id, employee_id,
+              evaluation_period_start, evaluation_period_end, evaluation_date, status)
+             VALUES (?, ?, NULL, ?, ?, ?, NOW(), 'draft')`,
+            [organization_id, cycle_id, lm.id, cycle.start_date, cycle.end_date]
+          );
+
+          const evaluationId = evalResult.insertId;
+
+          // Create evaluation details for each parameter
+          for (const param of matrixParams) {
+            await connection.execute(
+              `INSERT INTO evaluation_details 
+               (evaluation_id, parameter_id, score, created_at)
+               VALUES (?, ?, NULL, NOW())`,
+              [evaluationId, param.parameter_id]
+            );
+          }
+
+          // Create evaluation status record
+          await connection.execute(
+            `INSERT INTO evaluation_status 
+             (evaluation_id, status, updated_at)
+             VALUES (?, 'pending', NOW())`,
+            [evaluationId]
+          );
+        }
+
+        console.log(`Created evaluations for ${lineManagers.length} line managers`);
+      } else {
+        console.log('No line managers assigned to teams in this cycle');
+      }
+    }
+
     await connection.commit();
     connection.release();
+
+    console.log('Cycle activation completed successfully');
 
     // Send cycle activation notifications to all line managers and staff
     try {
@@ -211,6 +381,7 @@ exports.activateCycle = async (req, res) => {
     await connection.rollback();
     connection.release();
     console.error('Cycle activation error:', error);
+    console.error('Error stack:', error.stack);
     res.status(400).json({ error: error.message || 'Activation failed' });
   }
 };
@@ -309,6 +480,44 @@ exports.getAssignments = async (req, res) => {
   } catch (error) {
     console.error('Get assignments error:', error);
     res.status(500).json({ error: 'Failed to fetch assignments' });
+  }
+};
+
+exports.deleteAssignment = async (req, res) => {
+  const { id } = req.params;
+  const { organizationId: organization_id } = req.user || {};
+
+  if (!organization_id) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    // Get assignment details to check cycle status
+    const [assignment] = await db.execute(
+      `SELECT cta.*, ec.status as cycle_status 
+       FROM cycle_team_assignments cta
+       JOIN evaluation_cycles ec ON cta.cycle_id = ec.id
+       WHERE cta.id = ? AND ec.organization_id = ?`,
+      [id, organization_id]
+    );
+
+    if (assignment.length === 0) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    if (assignment[0].cycle_status !== 'draft') {
+      return res.status(400).json({ error: 'Cannot delete assignments from non-draft cycles' });
+    }
+
+    await db.execute(
+      'DELETE FROM cycle_team_assignments WHERE id = ?',
+      [id]
+    );
+
+    res.json({ message: 'Assignment deleted successfully' });
+  } catch (error) {
+    console.error('Delete assignment error:', error);
+    res.status(500).json({ error: 'Failed to delete assignment' });
   }
 };
 

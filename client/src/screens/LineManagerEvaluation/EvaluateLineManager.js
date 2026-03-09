@@ -48,59 +48,65 @@ const EvaluateLineManager = () => {
           cycleName: state.cycleName || 'N/A'
         });
 
-        // Fetch all matrices and find the active line-manager matrix
-        const matricesResponse = await axios.get(
-          'http://localhost:5000/api/matrices',
+        // Fetch cycle details to get the line_manager_matrix_id
+        const cycleResponse = await axios.get(
+          `http://localhost:5000/api/cycles/${state.cycleId}`,
           config
         );
 
-        console.log('Matrices response:', matricesResponse.data);
+        console.log('Cycle response:', cycleResponse.data);
 
-        if (matricesResponse.data.success) {
-          const matrices = matricesResponse.data.data || [];
-          
-          console.log('All matrices:', matrices);
-          
-          // Find active line-manager matrix
-          const lineManagerMatrix = matrices.find(
-            m => m.matrix_type === 'line-manager' && m.status === 'active'
-          );
+        if (!cycleResponse.data.line_manager_matrix_id) {
+          toast.error('No line manager matrix assigned to this evaluation cycle');
+          navigate('/linemanager-evaluation');
+          return;
+        }
 
-          console.log('Found line manager matrix:', lineManagerMatrix);
+        const lineManagerMatrixId = cycleResponse.data.line_manager_matrix_id;
+        setMatrixId(lineManagerMatrixId);
 
-          if (!lineManagerMatrix) {
-            toast.error('No active line manager matrix found. Please create and activate one first.');
-            navigate('/linemanager-evaluation');
-            return;
-          }
+        // Fetch matrix parameters
+        const matrixResponse = await axios.get(
+          `http://localhost:5000/api/matrices/${lineManagerMatrixId}`,
+          config
+        );
 
-          // The matrix ID might be 'id' or 'matrix_id'
-          const matrixIdValue = lineManagerMatrix.id || lineManagerMatrix.matrix_id;
-          
-          console.log('Matrix ID:', matrixIdValue);
-          
-          if (!matrixIdValue) {
-            toast.error('Invalid matrix ID');
-            navigate('/linemanager-evaluation');
-            return;
-          }
+        console.log('Matrix response:', matrixResponse.data);
 
-          setMatrixId(matrixIdValue);
+        if (matrixResponse.data.success) {
+          const params = matrixResponse.data.data.parameters || [];
+          setMatrixParameters(params.map(param => ({
+            id: param.parameter_id,
+            parameter: param.parameter_name,
+            weight: param.weightage,
+            description: param.description || ''
+          })));
 
-          // Fetch matrix parameters
-          const matrixResponse = await axios.get(
-            `http://localhost:5000/api/matrices/${matrixIdValue}`,
+          // Fetch existing evaluation for this line manager and cycle
+          const evaluationResponse = await axios.get(
+            `http://localhost:5000/api/evaluations/line-manager/${state.lineManagerId || id}/${state.cycleId}`,
             config
           );
 
-          if (matrixResponse.data.success) {
-            const params = matrixResponse.data.data.parameters || [];
-            setMatrixParameters(params.map(param => ({
-              id: param.parameter_id,
-              parameter: param.parameter_name,
-              weight: param.weightage,
-              description: param.description || ''
-            })));
+          console.log('Evaluation response:', evaluationResponse.data);
+
+          if (evaluationResponse.data.success && evaluationResponse.data.evaluation) {
+            const evalData = evaluationResponse.data.evaluation;
+            
+            // Pre-fill scores if evaluation exists
+            if (evalData.details && evalData.details.length > 0) {
+              const scores = {};
+              evalData.details.forEach(detail => {
+                if (detail.score !== null) {
+                  scores[detail.parameter_id] = detail.score;
+                }
+              });
+              setEvaluations(scores);
+            }
+
+            // Pre-fill feedback and recommendation
+            if (evalData.comments) setFeedback(evalData.comments);
+            if (evalData.recommendation) setRecommendation(evalData.recommendation);
           }
         }
 
@@ -157,43 +163,23 @@ const EvaluateLineManager = () => {
 
       const totalScore = parseFloat(calculateTotalScore());
 
-      const evaluationPayload = {
-        matrix_id: matrixId,
-        employee_id: lineManager.id,
-        cycle_id: state.cycleId,
-        overall_score: totalScore,
-        comments: feedback,
-        recommendation: recommendation,
-        status: 'completed',
-        evaluation_type: 'line-manager'
-      };
-
-      console.log('Submitting evaluation with payload:', evaluationPayload);
-
-      const evaluationResponse = await axios.post(
-        'http://localhost:5000/api/evaluations',
-        evaluationPayload,
+      // Update the existing evaluation
+      const updateResponse = await axios.put(
+        `http://localhost:5000/api/evaluations/line-manager/${lineManager.id}/${state.cycleId}`,
+        {
+          overall_score: totalScore,
+          comments: feedback,
+          recommendation: recommendation,
+          status: 'completed',
+          parameters: matrixParameters.map(param => ({
+            parameter_id: param.id,
+            score: evaluations[param.id]
+          }))
+        },
         config
       );
 
-      if (evaluationResponse.data.success) {
-        const evaluationId = evaluationResponse.data.evaluation_id;
-        
-        // Create evaluation details for each parameter
-        const detailPromises = matrixParameters.map(param => {
-          return axios.post(
-            'http://localhost:5000/api/evaluations/details',
-            {
-              evaluation_id: evaluationId,
-              parameter_id: param.id,
-              score: evaluations[param.id],
-              comments: feedback
-            },
-            config
-          );
-        });
-
-        await Promise.all(detailPromises);
+      if (updateResponse.data.success) {
         toast.success('Line manager evaluation submitted successfully');
         navigate('/linemanager-evaluation');
       }

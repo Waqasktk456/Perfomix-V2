@@ -7,6 +7,201 @@ const { verifyToken } = require('../middlewares/authMiddleware');
 // Protect all routes
 router.use(verifyToken);
 
+// Get line manager evaluation by employee and cycle
+router.get('/line-manager/:employeeId/:cycleId', async (req, res) => {
+  try {
+    const { employeeId, cycleId } = req.params;
+    const { organizationId } = req.user;
+
+    console.log('=== Fetching line manager evaluation ===');
+    console.log('Params:', { employeeId, cycleId, organizationId });
+
+    // First, check if there's ANY evaluation for this employee in this cycle
+    const [allEvals] = await db.query(
+      `SELECT e.id, e.employee_id, e.cycle_id, e.cycle_team_assignment_id, e.overall_score, e.status
+       FROM evaluations e
+       WHERE e.employee_id = ? AND e.cycle_id = ? AND e.organization_id = ?`,
+      [employeeId, cycleId, organizationId]
+    );
+    
+    console.log('All evaluations for this employee in this cycle:', allEvals);
+
+    // Fetch evaluation - line manager evaluations have NULL cycle_team_assignment_id
+    const [evaluations] = await db.query(
+      `SELECT e.id as evaluation_id, e.employee_id, e.cycle_id, 
+              e.status, e.comments, e.overall_score, e.strengths, e.areas_for_improvement,
+              ec.line_manager_matrix_id, ec.cycle_name
+       FROM evaluations e
+       JOIN evaluation_cycles ec ON e.cycle_id = ec.id
+       WHERE e.employee_id = ? 
+         AND e.cycle_id = ? 
+         AND e.organization_id = ? 
+         AND e.cycle_team_assignment_id IS NULL
+       LIMIT 1`,
+      [employeeId, cycleId, organizationId]
+    );
+
+    console.log('Line manager evaluation found:', evaluations);
+
+    if (evaluations.length === 0) {
+      console.log('No line manager evaluation found');
+      return res.json({ success: true, evaluation: null, message: 'No line manager evaluation found' });
+    }
+
+    const evaluation = evaluations[0];
+    const matrixId = evaluation.line_manager_matrix_id;
+
+    console.log('Evaluation ID:', evaluation.evaluation_id);
+    console.log('Matrix ID:', matrixId);
+    console.log('Overall Score:', evaluation.overall_score);
+
+    if (!matrixId) {
+      console.log('WARNING: No line manager matrix assigned to this cycle');
+    }
+
+    // Fetch evaluation details with weightage from the line manager matrix
+    const [details] = await db.query(
+      `SELECT ed.id, ed.parameter_id, ed.score, ed.comments, 
+              p.parameter_name, 
+              COALESCE(pm.weightage, 0) as weightage
+       FROM evaluation_details ed
+       JOIN parameters p ON ed.parameter_id = p.id
+       LEFT JOIN parameter_matrices pm ON pm.parameter_id = p.id AND pm.matrix_id = ?
+       WHERE ed.evaluation_id = ?
+       ORDER BY p.parameter_name`,
+      [matrixId, evaluation.evaluation_id]
+    );
+
+    console.log('Evaluation details count:', details.length);
+    console.log('Sample detail:', details[0]);
+
+    evaluation.details = details;
+    evaluation.recommendation = evaluation.areas_for_improvement;
+
+    console.log('=== Sending response ===');
+    console.log('Overall score:', evaluation.overall_score);
+    console.log('Details count:', evaluation.details.length);
+
+    res.json({ success: true, evaluation });
+  } catch (error) {
+    console.error('Error fetching line manager evaluation:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch evaluation', error: error.message });
+  }
+});
+
+// Get all evaluations done by a line manager in a specific cycle
+router.get('/line-manager-performance/:lineManagerId/:cycleId', async (req, res) => {
+  try {
+    const { lineManagerId, cycleId } = req.params;
+    const { organizationId } = req.user;
+
+    // Fetch all evaluations done by this line manager in this cycle
+    const [evaluations] = await db.query(
+      `SELECT 
+        ev.id,
+        ev.employee_id,
+        ev.status as evaluation_status,
+        ev.overall_score,
+        e.first_name,
+        e.last_name,
+        e.email,
+        e.designation,
+        d.Department_name as department_name,
+        t.team_name
+       FROM evaluations ev
+       JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+       JOIN employees e ON ev.employee_id = e.id
+       LEFT JOIN departments d ON e.department_id = d.id
+       LEFT JOIN teams t ON cta.team_id = t.id
+       WHERE cta.line_manager_id = ? 
+         AND cta.cycle_id = ?
+         AND ev.organization_id = ?
+       ORDER BY e.first_name, e.last_name`,
+      [lineManagerId, cycleId, organizationId]
+    );
+
+    res.json({ success: true, data: evaluations });
+  } catch (error) {
+    console.error('Error fetching line manager performance:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch performance data' });
+  }
+});
+
+// Update line manager evaluation
+router.put('/line-manager/:employeeId/:cycleId', async (req, res) => {
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    const { employeeId, cycleId } = req.params;
+    const { organizationId } = req.user;
+    const { overall_score, comments, recommendation, status, parameters } = req.body;
+
+    console.log('Update LM evaluation:', { employeeId, cycleId, organizationId });
+
+    // Find the evaluation
+    const [evaluations] = await connection.query(
+      `SELECT id 
+       FROM evaluations
+       WHERE employee_id = ? AND cycle_id = ? AND organization_id = ? AND cycle_team_assignment_id IS NULL
+       LIMIT 1`,
+      [employeeId, cycleId, organizationId]
+    );
+
+    console.log('Found evaluations:', evaluations);
+
+    if (evaluations.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Evaluation not found. Please make sure the cycle was activated after assigning the line manager matrix.' 
+      });
+    }
+
+    const evaluationId = evaluations[0].id;
+
+    console.log('Updating evaluation ID:', evaluationId);
+
+    // Update evaluation with overall score, comments, and status
+    await connection.query(
+      `UPDATE evaluations 
+       SET overall_score = ?, comments = ?, areas_for_improvement = ?, status = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [overall_score, comments, recommendation, status, evaluationId]
+    );
+
+    // Update or insert evaluation details for each parameter
+    for (const param of parameters) {
+      await connection.query(
+        `INSERT INTO evaluation_details (evaluation_id, parameter_id, score, created_at, updated_at)
+         VALUES (?, ?, ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE 
+           score = VALUES(score), 
+           updated_at = NOW()`,
+        [evaluationId, param.parameter_id, param.score]
+      );
+    }
+
+    // Update evaluation status for all parameters
+    await connection.query(
+      `UPDATE evaluation_status 
+       SET status = ?, updated_at = NOW()
+       WHERE evaluation_id = ?`,
+      [status, evaluationId]
+    );
+
+    await connection.commit();
+    res.json({ success: true, message: 'Evaluation updated successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error updating line manager evaluation:', error);
+    res.status(500).json({ success: false, message: 'Failed to update evaluation' });
+  } finally {
+    connection.release();
+  }
+});
+
 // Create a new evaluation
 router.post('/', async (req, res) => {
   try {
@@ -214,9 +409,15 @@ router.get('/completed/:employeeId', async (req, res) => {
       ORDER BY p.parameter_name
     `, [evaluationId]);
 
+    // Get the stored overall_score
+    const [[overallScoreRow]] = await db.query(`
+      SELECT overall_score FROM evaluations WHERE id = ?
+    `, [evaluationId]);
+
     res.json({
       success: true,
       evaluation_id: evaluationId,
+      overall_score: overallScoreRow?.overall_score || 0,
       evaluations: rows
     });
   } catch (error) {
@@ -224,6 +425,50 @@ router.get('/completed/:employeeId', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch completed evaluations',
+      error: error.message
+    });
+  }
+});
+
+// Get evaluation by evaluation_id (for specific cycle)
+router.get('/by-id/:evaluationId', async (req, res) => {
+  try {
+    const { evaluationId } = req.params;
+
+    // Get parameters with scores and feedback for this specific evaluation
+    const [rows] = await db.query(`
+      SELECT 
+        p.id AS parameter_id,
+        p.parameter_name AS parameter,
+        pmx.weightage,
+        COALESCE(ed.score, NULL) AS score,
+        COALESCE(ed.comments, '') AS feedback,
+        'completed' AS evaluation_status
+      FROM evaluations ev
+      JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+      JOIN parameter_matrices pmx ON pmx.matrix_id = cta.matrix_id
+      JOIN parameters p ON pmx.parameter_id = p.id
+      LEFT JOIN evaluation_details ed ON ed.evaluation_id = ev.id AND ed.parameter_id = p.id
+      WHERE ev.id = ?
+      ORDER BY p.parameter_name
+    `, [evaluationId]);
+
+    // Get the stored overall_score
+    const [[overallScoreRow]] = await db.query(`
+      SELECT overall_score FROM evaluations WHERE id = ?
+    `, [evaluationId]);
+
+    res.json({
+      success: true,
+      evaluation_id: evaluationId,
+      overall_score: overallScoreRow?.overall_score || 0,
+      evaluations: rows
+    });
+  } catch (error) {
+    console.error('Error fetching evaluation by id:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch evaluation',
       error: error.message
     });
   }
@@ -317,12 +562,7 @@ router.get('/all-status', async (req, res) => {
           ELSE 'Pending'
         END AS evaluation_status,
         CASE 
-          WHEN ev.status = 'completed' THEN COALESCE(ev.overall_score, (
-            SELECT SUM((ed.score * pmx.weightage) / 100)
-            FROM evaluation_details ed
-            JOIN parameter_matrices pmx ON ed.parameter_id = pmx.parameter_id
-            WHERE ed.evaluation_id = ev.id AND pmx.matrix_id = pm.id
-          ))
+          WHEN ev.status = 'completed' THEN ev.overall_score
           ELSE 0
         END AS overall_weighted_score
       FROM employees e

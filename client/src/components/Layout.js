@@ -14,6 +14,7 @@ const Layout = () => {
   const [role, setRole] = useState("");
   const [userName, setUserName] = useState("");
   const [userPicture, setUserPicture] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -135,11 +136,35 @@ const Layout = () => {
               <NavLink to="/performance-report" className="menu-item">
                 <img src={PerformanceReportIcon} alt="Performance Report" className="icon" /> Performance Report
               </NavLink>
+              
+              {/* Settings Menu with Submenu */}
+              <div className="menu-item-wrapper">
+                <div 
+                  className={`menu-item ${settingsOpen ? 'active' : ''}`}
+                  onClick={() => setSettingsOpen(!settingsOpen)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <img src={SettingIcon} alt="Settings" className="icon" /> 
+                  Settings
+                  <span style={{ marginLeft: 'auto', fontSize: '12px' }}>
+                    {settingsOpen ? '▼' : '▶'}
+                  </span>
+                </div>
+                
+                {settingsOpen && (
+                  <div className="submenu">
+                    <NavLink to="/performance-ratings" className="submenu-item">
+                      Performance Ratings
+                    </NavLink>
+                    <NavLink to="/admin-profile" className="submenu-item">
+                      Profile Settings
+                    </NavLink>
+                  </div>
+                )}
+              </div>
+              
               {/* TODO: Notification functionality will be implemented in future updates */}
               {/* Temporarily removed notification menu item for admin */}
-              <NavLink to="/admin-profile" className="menu-item">
-                <img src={SettingIcon} alt="Settings" className="icon" /> Profile
-              </NavLink>
             </>
           )}
 

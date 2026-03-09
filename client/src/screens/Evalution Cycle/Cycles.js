@@ -36,13 +36,32 @@ const EvaluationCycles = () => {
 
   const handleActivate = async (cycleId) => {
     if (!window.confirm("Activate this cycle? Assignments will be locked.")) return;
+    
+    const loadingToast = toast.loading("Activating cycle...");
+    
     try {
       const config = getAuthConfig();
-      await axios.post(`http://localhost:5000/api/cycles/${cycleId}/activate`, {}, config);
-      toast.success("Cycle activated successfully");
+      const response = await axios.post(
+        `http://localhost:5000/api/cycles/${cycleId}/activate`, 
+        {}, 
+        { 
+          ...config,
+          timeout: 60000 // 60 second timeout
+        }
+      );
+      
+      toast.dismiss(loadingToast);
+      toast.success(response.data.message || "Cycle activated successfully");
       fetchCycles();
     } catch (err) {
-      toast.error(err.response?.data?.error || "Activation failed");
+      toast.dismiss(loadingToast);
+      console.error('Activation error:', err);
+      
+      if (err.code === 'ECONNABORTED') {
+        toast.error("Activation is taking too long. Please refresh and check if it completed.");
+      } else {
+        toast.error(err.response?.data?.error || err.message || "Activation failed");
+      }
     }
   };
 

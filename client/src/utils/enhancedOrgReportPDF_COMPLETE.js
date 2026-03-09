@@ -8,18 +8,36 @@
 
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { getPerformanceRatings } from '../services/performanceRatingService';
 
 // ==================== HELPER FUNCTIONS ====================
 
 /**
- * Get performance level classification
+ * Get performance level classification from database ratings
  */
-const getPerformanceLevel = (score) => {
+const getPerformanceLevel = async (score, ratings) => {
+    if (!ratings || ratings.length === 0) {
+        // Fallback to default if ratings not available
+        const numScore = parseFloat(score) || 0;
+        if (numScore >= 85) return { label: 'Excellent', color: '#10B981', bg: '#D1FAE5', icon: '★' };
+        if (numScore >= 70) return { label: 'Good', color: '#3B82F6', bg: '#DBEAFE', icon: '●' };
+        if (numScore >= 50) return { label: 'Satisfactory', color: '#F59E0B', bg: '#FEF3C7', icon: '▲' };
+        return { label: 'Needs Improvement', color: '#EF4444', bg: '#FEE2E2', icon: '!' };
+    }
+    
     const numScore = parseFloat(score) || 0;
-    if (numScore >= 85) return { label: 'Excellent', color: '#10B981', bg: '#D1FAE5', icon: '★' };
-    if (numScore >= 70) return { label: 'Good', color: '#3B82F6', bg: '#DBEAFE', icon: '●' };
-    if (numScore >= 50) return { label: 'Satisfactory', color: '#F59E0B', bg: '#FEF3C7', icon: '▲' };
-    return { label: 'Needs Improvement', color: '#EF4444', bg: '#FEE2E2', icon: '!' };
+    const rating = ratings.find(r => numScore >= r.min_score && numScore <= r.max_score);
+    
+    if (rating) {
+        return {
+            label: rating.name,
+            color: rating.color,
+            bg: rating.bg_color || rating.color,
+            icon: '★'
+        };
+    }
+    
+    return { label: 'Not Rated', color: '#9E9E9E', bg: '#F5F5F5', icon: '?' };
 };
 
 /**
@@ -157,7 +175,7 @@ function generateExecutiveSummary(summary, orgLevel, distWithPercent, totalCompl
                 </h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
                     ${distWithPercent.map(d => {
-                        const level = getPerformanceLevel(d.level === 'Excellent' ? 90 : d.level === 'Good' ? 75 : d.level === 'Satisfactory' ? 60 : 40);
+                        const level = d.levelData;
                         return `
                             <div style="text-align: center; padding: 20px; background: ${level.bg}; border-radius: 8px; border: 2px solid ${level.color};">
                                 <div style="font-size: 32px; font-weight: 900; color: ${level.color}; margin-bottom: 5px;">${d.count}</div>
@@ -475,19 +493,27 @@ export const generateEnhancedOrgReport = async (data) => {
     document.body.appendChild(container);
 
     try {
+        // Fetch performance ratings from database
+        const ratings = await getPerformanceRatings();
+        
         const { header, summary, top_performers, improvement_needed, distribution, dept_stats, manager_stats } = data;
         const timestamp = new Date().toLocaleString('en-US', { 
             dateStyle: 'long', 
             timeStyle: 'short' 
         });
         
-        const orgLevel = getPerformanceLevel(summary.average_score);
+        const orgLevel = await getPerformanceLevel(summary.average_score, ratings);
         const totalCompleted = summary.completed || 1;
         
-        // Calculate distribution percentages
-        const distWithPercent = distribution.map(d => ({
-            ...d,
-            percentage: Math.round((d.count / totalCompleted) * 100)
+        // Calculate distribution percentages and get ratings for each level
+        const distWithPercent = await Promise.all(distribution.map(async d => {
+            const score = d.level === 'Excellent' ? 90 : d.level === 'Very Good' ? 85 : d.level === 'Good' ? 75 : d.level === 'Satisfactory' ? 60 : 40;
+            const level = await getPerformanceLevel(score, ratings);
+            return {
+                ...d,
+                percentage: Math.round((d.count / totalCompleted) * 100),
+                levelData: level
+            };
         }));
 
         const html = `

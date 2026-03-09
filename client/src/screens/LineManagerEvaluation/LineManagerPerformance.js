@@ -1,72 +1,98 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { FaChevronDown } from "react-icons/fa";
 import { Checkbox } from "@mui/material";
 import { Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { generateProfessionalPDF } from '../../utils/pdfGenerator';
 import { getPerformanceRating } from '../../services/performanceRatingService';
-import "./view-performance-report.css";
+import "./LineManagerPerformance.css";
 
-const ViewPerformanceReport = () => {
+const LineManagerPerformance = () => {
   const location = useLocation();
-  const employee = location.state?.employee;
+  const navigate = useNavigate();
   const [trendline, setTrendline] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState("Monthly");
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [performanceData, setPerformanceData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedParamIndex, setSelectedParamIndex] = useState(null);
+  const [evaluation, setEvaluation] = useState(null);
   const [performance, setPerformance] = useState({ level: 'Loading...', color: '#9E9E9E', bg: '#F5F5F5' });
-  const [storedOverallScore, setStoredOverallScore] = useState(null);
+
+  const {
+    lineManagerId,
+    lineManagerName,
+    lineManagerEmail,
+    department,
+    designation,
+    cycleId,
+    cycleName
+  } = location.state || {};
 
   useEffect(() => {
-    const fetchPerformance = async () => {
-      if (employee?.evaluation_id) {
-        try {
-          const token = localStorage.getItem('token');
-          const config = {
-            headers: { Authorization: `Bearer ${token}` }
+    if (!lineManagerId || !cycleId) {
+      toast.error("Missing line manager or cycle information");
+      navigate('/line-manager-evaluation');
+      return;
+    }
+    fetchLineManagerEvaluation();
+  }, [lineManagerId, cycleId]);
+
+  const fetchLineManagerEvaluation = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      console.log('Fetching evaluation for:', { lineManagerId, cycleId });
+
+      const response = await axios.get(
+        `http://localhost:5000/api/evaluations/line-manager/${lineManagerId}/${cycleId}`,
+        config
+      );
+
+      console.log('Response:', response.data);
+
+      if (response.data.success && response.data.evaluation) {
+        const evalData = response.data.evaluation;
+        console.log('Evaluation data:', evalData);
+        setEvaluation(evalData);
+        
+        // Map evaluation details to performance data format
+        const mappedData = (evalData.details || []).map(detail => {
+          console.log('Detail:', detail);
+          const rawScore = detail.score || 0;
+          const weight = detail.weightage || 0;
+          // Calculate weighted score: (weight / 100) * raw_score
+          const weightedScore = ((weight / 100) * rawScore).toFixed(2);
+          
+          return {
+            parameter_name: detail.parameter_name,
+            weightage: weight,
+            score: rawScore,
+            weightedScore: parseFloat(weightedScore),
+            feedback: detail.comments || '-',
+            recommendation: evalData.recommendation || evalData.areas_for_improvement || '-'
           };
-
-          // Use evaluation_id directly instead of fetching by employee_id
-          const res = await axios.get(`http://localhost:5000/api/evaluations/by-id/${employee.evaluation_id}`, config);
-
-          if (res.data.success && Array.isArray(res.data.evaluations)) {
-            // Calculate weighted scores for each evaluation
-            const evaluationsWithWeightedScores = res.data.evaluations.map(evaluation => ({
-              ...evaluation,
-              parameter_name: evaluation.parameter, // ensure consistent naming
-              weightedScore: (((Number(evaluation.weightage) || 0) / 100) * (Number(evaluation.score) || 0)).toFixed(2)
-            }));
-            setPerformanceData(evaluationsWithWeightedScores);
-            
-            // Use stored overall_score if available, otherwise calculate
-            if (res.data.overall_score) {
-              setStoredOverallScore(res.data.overall_score);
-            }
-          } else {
-            setPerformanceData([]);
-          }
-        } catch (error) {
-          console.error('Error fetching performance data:', error);
-          setPerformanceData([]);
-        } finally {
-          setLoading(false);
-        }
+        });
+        
+        console.log('Mapped data:', mappedData);
+        setPerformanceData(mappedData);
       } else {
-        setLoading(false);
+        console.log('No evaluation found or error:', response.data);
+        toast.info('No evaluation found for this line manager in this cycle');
       }
-    };
+    } catch (error) {
+      console.error('Error fetching line manager evaluation:', error);
+      console.error('Error response:', error.response?.data);
+      toast.error('Failed to fetch evaluation data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchPerformance();
-  }, [employee]);
-
-  // Use stored overall_score if available, otherwise calculate from weighted scores
-  const totalScore = storedOverallScore || (performanceData.length > 0
+  // Calculate total score from weighted scores (sum of all weighted scores)
+  const totalScore = performanceData.length > 0
     ? performanceData.reduce((acc, curr) => acc + (Number(curr.weightedScore) || 0), 0)
-    : 0);
+    : 0;
 
   // Fetch performance rating from database
   useEffect(() => {
@@ -93,29 +119,8 @@ const ViewPerformanceReport = () => {
     return currentScore < worstScore ? curr : worst;
   }, performanceData[0]) : null;
 
-
   const exportToPDF = async () => {
-    // We attempt to use the evaluation_id from the employee object
-    const evalId = employee?.evaluation_id;
-    if (!evalId) {
-      toast.error("Evaluation record not found");
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const res = await axios.get(`http://localhost:5000/api/reports/individual/${evalId}`, config);
-
-      if (res.data.success) {
-        toast.info(`Generating professional assessment for ${employee.name}...`);
-        await generateProfessionalPDF(res.data, 'individual-assessment');
-        toast.success("Assessment report downloaded");
-      }
-    } catch (error) {
-      console.error('Individual PDF Export Error:', error);
-      toast.error("Failed to generate professional report");
-    }
+    toast.info("PDF export functionality coming soon");
   };
 
   if (loading) return <div>Loading...</div>;
@@ -123,7 +128,9 @@ const ViewPerformanceReport = () => {
   return (
     <div className="staff-dashboard-container">
       <div className="breadcrumb">
-        <span>Performance Report</span> &gt;
+        <span onClick={() => navigate('/line-manager-evaluation')} style={{ cursor: 'pointer' }}>
+          Line Manager Evaluation
+        </span> &gt;
         <span className="active"> View Performance </span>
       </div>
 
@@ -163,7 +170,9 @@ const ViewPerformanceReport = () => {
         <select className="staff-filter-dropdown" defaultValue="Year">
           <option>Year</option>
         </select>
-        <h2 className="report-title" style={{ flexGrow: 1, textAlign: 'center', margin: 0 }}>{employee?.name || "Employee"}</h2>
+        <h2 className="report-title" style={{ flexGrow: 1, textAlign: 'center', margin: 0 }}>
+          {lineManagerName || "Line Manager"}
+        </h2>
         <div className="export-container">
           <button
             className="staff-export-report-btn"
@@ -191,15 +200,15 @@ const ViewPerformanceReport = () => {
         </thead>
         <tbody>
           {performanceData.length === 0 ? (
-            <tr><td colSpan="5" style={{ textAlign: 'center' }}>No completed evaluations found.</td></tr>
+            <tr><td colSpan="5" style={{ textAlign: 'center' }}>No evaluation data found.</td></tr>
           ) : (
             performanceData.map((item, index) => (
               <tr key={index}>
                 <td>{item.parameter_name}</td>
                 <td>{item.weightage || 0}</td>
                 <td>{item.weightedScore}</td>
-                <td>{item.feedback || '-'}</td>
-                <td>{item.recommendation || '-'}</td>
+                <td>{item.feedback}</td>
+                <td>{item.recommendation}</td>
               </tr>
             ))
           )}
@@ -246,4 +255,4 @@ const ViewPerformanceReport = () => {
   );
 };
 
-export default ViewPerformanceReport;
+export default LineManagerPerformance;

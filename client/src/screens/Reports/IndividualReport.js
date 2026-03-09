@@ -9,6 +9,7 @@ import { MdTrendingUp, MdTrendingDown } from 'react-icons/md';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { toast } from 'react-toastify';
+import { getPerformanceRating } from '../../services/performanceRatingService';
 import './reports.css'; // Ensure you have basic styles or add new ones
 
 const IndividualReport = () => {
@@ -16,6 +17,8 @@ const IndividualReport = () => {
     const navigate = useNavigate();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [performanceRating, setPerformanceRating] = useState({ label: 'Loading...', color: '#9E9E9E', bg: '#F5F5F5' });
+    const [parameterColors, setParameterColors] = useState({});
     const reportRef = useRef();
 
     useEffect(() => {
@@ -28,6 +31,22 @@ const IndividualReport = () => {
             const config = { headers: { Authorization: `Bearer ${token}` } };
             const res = await axios.get(`http://localhost:5000/api/reports/individual/${evaluation_id}`, config);
             setData(res.data);
+            
+            // Fetch performance rating for overall score
+            if (res.data?.overall_score) {
+                const rating = await getPerformanceRating(res.data.overall_score);
+                setPerformanceRating(rating);
+            }
+            
+            // Fetch colors for each parameter score
+            if (res.data?.performance?.parameters) {
+                const colors = {};
+                for (const param of res.data.performance.parameters) {
+                    const rating = await getPerformanceRating(param.score);
+                    colors[param.parameter_id] = rating.color;
+                }
+                setParameterColors(colors);
+            }
         } catch (error) {
             console.error('Report fetch error:', error);
             toast.error('Failed to load report');
@@ -60,7 +79,7 @@ const IndividualReport = () => {
     if (!data) return <div className="error-container">Report not found.</div>;
 
     const { employee_details, cycle_details, performance } = data;
-    const performanceLevel = getPerformanceLevel(performance.overall_score);
+    const performanceLevel = performanceRating; // Use database rating
 
     // Sort parameters to find strengths and weaknesses
     const sortedParams = [...performance.parameters].sort((a, b) => b.score - a.score);
@@ -209,7 +228,7 @@ const IndividualReport = () => {
                                                     className="progress-bar-fill"
                                                     style={{
                                                         width: `${p.score}%`,
-                                                        backgroundColor: getPerformanceLevel(p.score).color
+                                                        backgroundColor: parameterColors[p.parameter_id] || '#9E9E9E'
                                                     }}
                                                 ></div>
                                             </div>

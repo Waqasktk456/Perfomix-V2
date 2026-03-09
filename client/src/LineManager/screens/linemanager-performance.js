@@ -16,6 +16,7 @@ import {
 import axios from "axios";
 import { toast } from 'react-toastify';
 import { generateProfessionalPDF } from '../../utils/pdfGenerator';
+import { getPerformanceRating } from '../../services/performanceRatingService';
 import "./linemanager-performance.css";
 
 const LineManagerDashboard = () => {
@@ -26,6 +27,7 @@ const LineManagerDashboard = () => {
   const [parametersData, setParametersData] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [totalScore, setTotalScore] = useState(0);
+  const [performance, setPerformance] = useState({ level: 'Loading...', color: '#9E9E9E', bg: '#F5F5F5' });
 
   useEffect(() => {
     const fetchEvaluations = async () => {
@@ -66,15 +68,16 @@ const LineManagerDashboard = () => {
     fetchEvaluations();
   }, []);
 
-  // Performance level logic (same as staff dashboard)
-  const getPerformanceLevel = (score) => {
-    if (score >= 90) return { level: "Excellent", color: "#4CAF50" };
-    if (score >= 80) return { level: "Very Good", color: "#8BC34A" };
-    if (score >= 70) return { level: "Good", color: "#FFC107" };
-    if (score >= 60) return { level: "Satisfactory", color: "#FF9800" };
-    return { level: "Needs Improvement", color: "#F44336" };
-  };
-  const performance = getPerformanceLevel(Number(totalScore));
+  // Fetch performance rating from database
+  useEffect(() => {
+    const fetchRating = async () => {
+      if (totalScore > 0) {
+        const rating = await getPerformanceRating(totalScore);
+        setPerformance(rating);
+      }
+    };
+    fetchRating();
+  }, [totalScore]);
 
   // Best and worst parameter logic
   const bestParam = parametersData.reduce((best, curr) => {

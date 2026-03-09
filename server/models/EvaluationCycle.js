@@ -48,6 +48,7 @@ class EvaluationCycle {
          start_date, 
          end_date, 
          status, 
+         line_manager_matrix_id,
          created_at,
          created_by
        FROM evaluation_cycles 
@@ -127,7 +128,7 @@ class EvaluationCycle {
     return rows.map(r => r.matrix_id);
   }
 
-  static async createEvaluationsForAssignment({
+  static async createEvaluationsForAssignment(connection, {
     assignment_id,
     cycle_id,
     team_id,
@@ -137,113 +138,110 @@ class EvaluationCycle {
     end_date,
     organization_id
   }) {
-    const connection = await db.getConnection();
-    await connection.beginTransaction();
+    const [employees] = await connection.execute(
+      `SELECT e.id AS employee_id 
+       FROM employees e
+       INNER JOIN team_members tm ON e.id = tm.employee_id
+       WHERE tm.team_id = ? 
+         AND e.organization_id = ? 
+         AND e.deleted_at IS NULL`,
+      [team_id, organization_id]
+    );
 
-    try {
-      const [employees] = await connection.execute(
-        `SELECT e.id AS employee_id 
-         FROM employees e
-         INNER JOIN team_members tm ON e.id = tm.employee_id
-         WHERE tm.team_id = ? 
-           AND e.organization_id = ? 
-           AND e.deleted_at IS NULL`,
-        [team_id, organization_id]
-      );
+    console.log(`Found ${employees.length} employees for team ${team_id}`);
 
-      console.log(`Found ${employees.length} employees for team ${team_id}`);
-
-      if (employees.length === 0) {
-        await connection.commit();
-        connection.release();
-        return { employeesCreated: 0, detailsCreated: 0 };
-      }
-
-      const [parameters] = await connection.execute(
-        `SELECT parameter_id 
-         FROM parameter_matrices 
-         WHERE matrix_id = ?`,
-        [matrix_id]
-      );
-
-      if (parameters.length === 0) {
-        throw new Error(`Matrix ${matrix_id} has no parameters`);
-      }
-
-      const evalValues = employees.map(emp => [
-        organization_id,
-        cycle_id,
-        assignment_id,
-        emp.employee_id,
-        start_date,
-        end_date,
-        'draft',
-        new Date()
-      ]);
-
-      await connection.query(
-        `INSERT INTO evaluations 
-         (organization_id, cycle_id, cycle_team_assignment_id, employee_id,
-          evaluation_period_start, evaluation_period_end, status, evaluation_date)
-         VALUES ?`,
-        [evalValues]
-      );
-
-      const [evalIdsRes] = await connection.query(
-        `SELECT id AS evaluation_id 
-         FROM evaluations 
-         WHERE cycle_team_assignment_id = ? 
-         ORDER BY id DESC 
-         LIMIT ?`,
-        [assignment_id, employees.length]
-      );
-
-      const evaluationIds = evalIdsRes.map(r => r.evaluation_id);
-
-      const detailValues = [];
-      for (let i = 0; i < employees.length; i++) {
-        const evaluation_id = evaluationIds[i];
-        const employee_id = employees[i].employee_id;
-
-        for (const param of parameters) {
-          detailValues.push([
-            evaluation_id,
-            param.parameter_id,
-            null,
-            null
-          ]);
-
-          await connection.query(
-            `INSERT INTO evaluation_status 
-             (evaluation_id, employee_id, parameter_id, status)
-             VALUES (?, ?, ?, 'Pending')
-             ON DUPLICATE KEY UPDATE status = 'Pending'`,
-            [evaluation_id, employee_id, param.parameter_id]
-          );
-        }
-      }
-
-      if (detailValues.length > 0) {
-        await connection.query(
-          `INSERT INTO evaluation_details 
-           (evaluation_id, parameter_id, score, comments)
-           VALUES ?`,
-          [detailValues]
-        );
-      }
-
-      await connection.commit();
-      connection.release();
-
-      return {
-        employeesCreated: employees.length,
-        detailsCreated: detailValues.length
-      };
-    } catch (error) {
-      await connection.rollback();
-      connection.release();
-      throw error;
+    if (employees.length === 0) {
+      return { employeesCreated: 0, detailsCreated: 0 };
     }
+
+    const [parameters] = await connection.execute(
+      `SELECT parameter_id 
+       FROM parameter_matrices 
+       WHERE matrix_id = ?`,
+      [matrix_id]
+    );
+
+    if (parameters.length === 0) {
+      throw new Error(`Matrix ${matrix_id} has no parameters`);
+    }
+
+    const evalValues = employees.map(emp => [
+      organization_id,
+      cycle_id,
+      assignment_id,
+      emp.employee_id,
+      start_date,
+      end_date,
+      'draft',
+      new Date()
+    ]);
+
+    await connection.query(
+      `INSERT INTO evaluations 
+       (organization_id, cycle_id, cycle_team_assignment_id, employee_id,
+        evaluation_period_start, evaluation_period_end, status, evaluation_date)
+       VALUES ?`,
+      [evalValues]
+    );
+
+    const [evalIdsRes] = await connection.query(
+      `SELECT id AS evaluation_id 
+       FROM evaluations 
+       WHERE cycle_team_assignment_id = ? 
+       ORDER BY id DESC 
+       LIMIT ?`,
+      [assignment_id, employees.length]
+    );
+
+    const evaluationIds = evalIdsRes.map(r => r.evaluation_id);
+
+    const detailValues = [];
+    const statusValues = [];
+    
+    for (let i = 0; i < employees.length; i++) {
+      const evaluation_id = evaluationIds[i];
+      const employee_id = employees[i].employee_id;
+
+      for (const param of parameters) {
+        detailValues.push([
+          evaluation_id,
+          param.parameter_id,
+          null,
+          null
+        ]);
+
+        statusValues.push([
+          evaluation_id,
+          employee_id,
+          param.parameter_id,
+          'Pending'
+        ]);
+      }
+    }
+
+    if (detailValues.length > 0) {
+      await connection.query(
+        `INSERT INTO evaluation_details 
+         (evaluation_id, parameter_id, score, comments)
+         VALUES ?`,
+        [detailValues]
+      );
+    }
+
+    if (statusValues.length > 0) {
+      await connection.query(
+        `INSERT INTO evaluation_status 
+         (evaluation_id, employee_id, parameter_id, status)
+         VALUES ?
+         ON DUPLICATE KEY UPDATE status = VALUES(status)`,
+        [statusValues]
+      );
+    }
+
+    return {
+      employeesCreated: employees.length,
+      detailsCreated: detailValues.length
+    };
   }
 }
 

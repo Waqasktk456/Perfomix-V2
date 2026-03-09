@@ -33,8 +33,16 @@ const LineManagerEvaluationScreen = () => {
 
   useEffect(() => {
     fetchCycles();
-    fetchLineManagers();
   }, []);
+
+  useEffect(() => {
+    if (selectedCycleId) {
+      fetchLineManagers();
+    } else {
+      setLineManagers([]);
+      setLoading(false);
+    }
+  }, [selectedCycleId]);
 
   const fetchCycles = async () => {
     try {
@@ -42,6 +50,8 @@ const LineManagerEvaluationScreen = () => {
       const response = await axios.get('http://localhost:5000/api/cycles', config);
       const cyclesData = Array.isArray(response.data) ? response.data : [];
       setCycles(cyclesData);
+      
+      // Automatically select the most recent cycle (first in the list)
       if (cyclesData.length > 0) {
         setSelectedCycleId(cyclesData[0].id);
       }
@@ -52,18 +62,26 @@ const LineManagerEvaluationScreen = () => {
   };
 
   const fetchLineManagers = async () => {
+    if (!selectedCycleId) {
+      setLineManagers([]);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
       const config = getAuthConfig();
-      const response = await axios.get('http://localhost:5000/api/employees', config);
-
-      console.log('Fetched employees:', response.data);
       
-      // Filter only line managers
-      const managers = (response.data || []).filter(emp => emp.role === 'line-manager');
-      setLineManagers(managers);
+      // Fetch only line managers who have been assigned teams in the selected cycle
+      const response = await axios.get(
+        `http://localhost:5000/api/cycles/${selectedCycleId}/line-managers`,
+        config
+      );
+
+      console.log('Fetched line managers for cycle:', response.data);
+      
+      setLineManagers(response.data || []);
     } catch (err) {
       console.error('Error fetching line managers:', err);
 
@@ -83,12 +101,34 @@ const LineManagerEvaluationScreen = () => {
     setSelectedLineManager(manager);
   };
 
-  const handleEvaluate = () => {
+  const handleEvaluate = async () => {
     if (!selectedCycleId) {
       toast.error('Please select an evaluation cycle first');
       return;
     }
-    if (selectedLineManager) {
+    if (!selectedLineManager) {
+      toast.error('Please select a line manager first');
+      return;
+    }
+
+    try {
+      const config = getAuthConfig();
+      
+      // Check if line manager has completed all their staff evaluations
+      const checkResponse = await axios.get(
+        `http://localhost:5000/api/line-manager/check-completion/${selectedLineManager.id}/${selectedCycleId}`,
+        config
+      );
+
+      if (!checkResponse.data.allCompleted) {
+        toast.error(
+          `This line manager has ${checkResponse.data.pendingCount} pending staff evaluations. ` +
+          `They must complete all staff evaluations before being evaluated.`
+        );
+        return;
+      }
+
+      // Proceed to evaluation page
       navigate(`/evaluate-linemanager/${selectedLineManager.id}`, {
         state: {
           lineManagerId: selectedLineManager.id,
@@ -100,9 +140,56 @@ const LineManagerEvaluationScreen = () => {
           cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name
         }
       });
-    } else {
-      toast.error('Please select a line manager first');
+    } catch (error) {
+      console.error('Error checking line manager completion:', error);
+      toast.error('Failed to check evaluation status');
     }
+  };
+
+  const handleViewPerformance = () => {
+    if (!selectedCycleId) {
+      toast.error('Please select an evaluation cycle first');
+      return;
+    }
+    if (!selectedLineManager) {
+      toast.error('Please select a line manager first');
+      return;
+    }
+
+    navigate('/line-manager-performance', {
+      state: {
+        lineManagerId: selectedLineManager.id,
+        lineManagerName: `${selectedLineManager.first_name} ${selectedLineManager.last_name}`,
+        lineManagerEmail: selectedLineManager.email,
+        department: selectedLineManager.department_name,
+        designation: selectedLineManager.designation,
+        cycleId: selectedCycleId,
+        cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name,
+        assignedTeamsCount: selectedLineManager.assigned_teams_count,
+        completedEvaluations: selectedLineManager.completed_evaluations,
+        totalEvaluations: selectedLineManager.total_evaluations
+      }
+    });
+  };
+
+  const handleViewTeamsPerformance = () => {
+    if (!selectedCycleId) {
+      toast.error('Please select an evaluation cycle first');
+      return;
+    }
+    if (!selectedLineManager) {
+      toast.error('Please select a line manager first');
+      return;
+    }
+
+    navigate('/line-manager-teams-performance', {
+      state: {
+        lineManagerId: selectedLineManager.id,
+        lineManagerName: `${selectedLineManager.first_name} ${selectedLineManager.last_name}`,
+        cycleId: selectedCycleId,
+        cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name
+      }
+    });
   };
 
   // Filter line managers based on search
@@ -250,10 +337,40 @@ const LineManagerEvaluationScreen = () => {
               cursor: selectedLineManager ? 'pointer' : 'not-allowed',
               position: "fixed",
               bottom: 30,
-              right: 20,
+              right: 380,
             }}
           >
             Evaluate Line Manager
+          </button>
+
+          <button
+            className="organization-view-details-btn"
+            onClick={handleViewTeamsPerformance}
+            disabled={!selectedLineManager || !selectedCycleId}
+            style={{
+              opacity: (selectedLineManager && selectedCycleId) ? 1 : 0.5,
+              cursor: (selectedLineManager && selectedCycleId) ? 'pointer' : 'not-allowed',
+              position: "fixed",
+              bottom: 30,
+              right: 190,
+            }}
+          >
+            View Teams Performance
+          </button>
+
+          <button
+            className="organization-view-details-btn"
+            onClick={handleViewPerformance}
+            disabled={!selectedLineManager || !selectedCycleId}
+            style={{
+              opacity: (selectedLineManager && selectedCycleId) ? 1 : 0.5,
+              cursor: (selectedLineManager && selectedCycleId) ? 'pointer' : 'not-allowed',
+              position: "fixed",
+              bottom: 30,
+              right: 20,
+            }}
+          >
+            View Performance
           </button>
         </>
       )}

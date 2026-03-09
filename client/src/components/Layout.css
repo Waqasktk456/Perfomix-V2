@@ -151,3 +151,36 @@
   flex: 1;
   overflow-y: auto;
 }
+
+
+/* Settings Menu with Submenu */
+.menu-item-wrapper {
+  margin-bottom: 2%;
+}
+
+.submenu {
+  margin-left: 28px;
+  margin-top: 5px;
+  border-left: 2px solid #e6f0ff;
+  padding-left: 10px;
+}
+
+.submenu-item {
+  display: block;
+  padding: 10px 15px;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-normal);
+  color: var(--sidebar-text);
+  text-decoration: none;
+  transition: 0.3s;
+  border-radius: 5px;
+  margin-bottom: 5px;
+}
+
+.submenu-item:hover,
+.submenu-item.active {
+  background: #e6f0ff;
+  color: var(--sidebar-text);
+  font-weight: var(--font-weight-semibold);
+}

@@ -7,6 +7,12 @@ const lineManagerController = require('../controllers/lineManagerController');
 // All routes protected
 router.use(verifyToken);
 
+// Check if line manager has completed all staff evaluations for a cycle
+router.get('/check-completion/:lineManagerId/:cycleId', lineManagerController.checkLineManagerCompletion);
+
+// Get teams performance for a line manager in a cycle
+router.get('/teams-performance/:lineManagerId/:cycleId', lineManagerController.getTeamsPerformance);
+
 // Get all teams assigned to current line manager with performance analytics
 router.get('/assigned-teams', lineManagerController.getMyAssignedTeams);
 

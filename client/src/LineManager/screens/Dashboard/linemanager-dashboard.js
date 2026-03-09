@@ -25,7 +25,6 @@ const LineManagerDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sendingReminder, setSendingReminder] = useState({});
-  const [todayFocus, setTodayFocus] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,7 +50,6 @@ const LineManagerDashboard = () => {
         let pending = 0;
         let completed = 0;
         let overdue = 0;
-        let nearestDeadline = null;
 
         const processedTeams = teamsData.map(team => {
           totalEmployees += team.employee_count || 0;
@@ -78,15 +76,6 @@ const LineManagerDashboard = () => {
               timeStatus = { type: "completed", days: 0 };
             } else {
               timeStatus = { type: "remaining", days: diffDays };
-              
-              // Track nearest deadline
-              if (!nearestDeadline || diffDays < nearestDeadline.days) {
-                nearestDeadline = {
-                  team_name: team.team_name,
-                  end_date: team.end_date,
-                  days: diffDays
-                };
-              }
             }
           } else if ((team.pending_evaluations || 0) === 0) {
             status = "completed";
@@ -109,12 +98,6 @@ const LineManagerDashboard = () => {
           pendingEvaluations: pending,
           completedEvaluations: completed,
           overdueEvaluations: overdue
-        });
-
-        setTodayFocus({
-          pendingCount: pending,
-          overdueCount: overdue,
-          nearestDeadline
         });
 
         setTeams(processedTeams);
@@ -252,38 +235,6 @@ const LineManagerDashboard = () => {
   return (
     <div className="dashboard-container">
       <h1 className="dashboard-title">Line Manager Dashboard</h1>
-
-      {/* Today's Focus Section */}
-      {todayFocus && (todayFocus.pendingCount > 0 || todayFocus.overdueCount > 0) && (
-        <div className="today-focus-section">
-          <h3 className="focus-title">📋 Today's Focus</h3>
-          <div className="focus-items">
-            {todayFocus.pendingCount > 0 && (
-              <div className="focus-item pending-focus">
-                <span className="focus-number">{todayFocus.pendingCount}</span>
-                <span className="focus-label">Pending Evaluation{todayFocus.pendingCount > 1 ? 's' : ''}</span>
-              </div>
-            )}
-            {todayFocus.overdueCount > 0 && (
-              <div className="focus-item overdue-focus">
-                <span className="focus-number">{todayFocus.overdueCount}</span>
-                <span className="focus-label">Overdue Evaluation{todayFocus.overdueCount > 1 ? 's' : ''}</span>
-              </div>
-            )}
-            {todayFocus.nearestDeadline && (
-              <div className="focus-item deadline-focus">
-                <span className="focus-icon">🎯</span>
-                <div className="focus-deadline-content">
-                  <span className="focus-deadline-label">Nearest Deadline</span>
-                  <span className="focus-deadline-info">
-                    {todayFocus.nearestDeadline.team_name} • {formatDeadlineDate(todayFocus.nearestDeadline.end_date)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Stats Cards */}
       <div className="stats-container">

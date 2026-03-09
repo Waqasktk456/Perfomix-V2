@@ -14,12 +14,14 @@ const CycleAssignments = () => {
 
   const [teams, setTeams] = useState([]);
   const [matrices, setMatrices] = useState([]);
+  const [lineManagerMatrices, setLineManagerMatrices] = useState([]);
   const [managers, setManagers] = useState([]);
   const [assignments, setAssignments] = useState([]);
 
   const [selectedTeam, setSelectedTeam] = useState("");
   const [selectedMatrix, setSelectedMatrix] = useState("");
   const [selectedManager, setSelectedManager] = useState("");
+  const [selectedLMMatrix, setSelectedLMMatrix] = useState("");
   const [loading, setLoading] = useState(false);
 
   const getAuthConfig = () => {
@@ -47,13 +49,26 @@ const CycleAssignments = () => {
       ]);
 
       setTeams(teamRes.data);
-      setMatrices(matrixRes.data.data || []);
+      
+      // Filter matrices by type
+      const allMatrices = matrixRes.data.data || [];
+      const staffMatrices = allMatrices.filter(m => m.matrix_type === 'staff');
+      const lmMatrices = allMatrices.filter(m => m.matrix_type === 'line-manager');
+      
+      setMatrices(staffMatrices);
+      setLineManagerMatrices(lmMatrices);
       setAssignments(assignRes.data || []);
 
-      // Fetch line managers (assuming you have an endpoint or filter from employees)
+      // Fetch line managers
       const empRes = await axios.get("http://localhost:5000/api/employees", config);
       const lineManagers = empRes.data.filter(e => e.role === "line-manager");
       setManagers(lineManagers);
+      
+      // Fetch cycle details to get the selected line manager matrix
+      const cycleRes = await axios.get(`http://localhost:5000/api/cycles/${cycle.id}`, config);
+      if (cycleRes.data.line_manager_matrix_id) {
+        setSelectedLMMatrix(cycleRes.data.line_manager_matrix_id);
+      }
     } catch (err) {
       toast.error("Failed to load data");
     }
@@ -100,6 +115,58 @@ const CycleAssignments = () => {
     }
   };
 
+  const handleSaveLMMatrix = async () => {
+    if (!selectedLMMatrix) {
+      return toast.error("Please select a line manager matrix");
+    }
+
+    try {
+      setLoading(true);
+      const config = getAuthConfig();
+      
+      console.log('Saving LM matrix:', { cycle_id: cycle.id, line_manager_matrix_id: selectedLMMatrix });
+      
+      const response = await axios.put(
+        `http://localhost:5000/api/cycles/${cycle.id}/line-manager-matrix`,
+        { line_manager_matrix_id: selectedLMMatrix },
+        config
+      );
+
+      console.log('Save response:', response.data);
+      toast.success("Line manager matrix saved successfully");
+      fetchData();
+    } catch (err) {
+      console.error("Save LM matrix error:", err);
+      console.error("Error response:", err.response?.data);
+      toast.error(err.response?.data?.error || "Failed to save line manager matrix");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAssignment = async (assignmentId) => {
+    if (!window.confirm("Are you sure you want to delete this assignment?")) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const config = getAuthConfig();
+      await axios.delete(
+        `http://localhost:5000/api/cycle-assignments/${assignmentId}`,
+        config
+      );
+
+      toast.success("Assignment deleted successfully");
+      fetchData();
+    } catch (err) {
+      console.error("Delete assignment error:", err);
+      toast.error(err.response?.data?.error || "Failed to delete assignment");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const availableTeams = teams.filter(
     (t) => !assignments.some((a) => a.team_id === t.id)
   );
@@ -130,6 +197,50 @@ const CycleAssignments = () => {
         </div>
       )}
 
+      {/* Line Manager Matrix Selection */}
+      <div style={{ 
+        background: "#f8f9fa", 
+        padding: "20px", 
+        borderRadius: "8px", 
+        marginBottom: "30px",
+        border: "1px solid #e2e8f0"
+      }}>
+        <h3 style={{ margin: "0 0 15px", fontWeight: "600", color: "#0b3558" }}>
+          Line Manager Evaluation Matrix
+        </h3>
+        <p style={{ fontSize: "14px", color: "#666", marginBottom: "15px" }}>
+          Select the matrix that will be used to evaluate all line managers in this cycle
+        </p>
+        <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+          <select
+            value={selectedLMMatrix}
+            onChange={(e) => setSelectedLMMatrix(e.target.value)}
+            disabled={cycle?.status !== "draft"}
+            className="select-input"
+            style={{ flex: 1 }}
+          >
+            <option value="">Select Line Manager Matrix</option>
+            {lineManagerMatrices.map((m) => (
+              <option key={m.matrix_id} value={m.matrix_id}>
+                {m.matrix_name}
+              </option>
+            ))}
+          </select>
+          <button
+            className="add-parameter-btn"
+            onClick={handleSaveLMMatrix}
+            disabled={loading || cycle?.status !== "draft" || !selectedLMMatrix}
+            style={{ minWidth: "150px" }}
+          >
+            {loading ? "Saving..." : "Save Matrix"}
+          </button>
+        </div>
+      </div>
+
+      <h3 style={{ margin: "0 0 15px", fontWeight: "600", color: "#0b3558" }}>
+        Team Assignments
+      </h3>
+
       <div className="assignment-form">
         <select
           value={selectedTeam}
@@ -151,7 +262,7 @@ const CycleAssignments = () => {
           disabled={cycle?.status !== "draft"}
           className="select-input"
         >
-          <option value="">Select Active Matrix</option>
+          <option value="">Select Staff Matrix</option>
           {matrices.map((m) => (
             <option key={m.matrix_id} value={m.matrix_id}>
               {m.matrix_name}
@@ -196,6 +307,7 @@ const CycleAssignments = () => {
               <th>Team</th>
               <th>Matrix</th>
               <th>Evaluator</th>
+              <th style={{ width: "80px", textAlign: "center" }}>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -204,6 +316,36 @@ const CycleAssignments = () => {
                 <td>{a.team_name}</td>
                 <td>{a.matrix_name}</td>
                 <td>{a.evaluator_name}</td>
+                <td style={{ textAlign: "center" }}>
+                  <button
+                    onClick={() => handleDeleteAssignment(a.id)}
+                    disabled={cycle?.status !== "draft" || loading}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      cursor: cycle?.status === "draft" ? "pointer" : "not-allowed",
+                      padding: "5px",
+                      opacity: cycle?.status === "draft" ? 1 : 0.5
+                    }}
+                    title="Delete assignment"
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#dc2626"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      <line x1="10" y1="11" x2="10" y2="17"></line>
+                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

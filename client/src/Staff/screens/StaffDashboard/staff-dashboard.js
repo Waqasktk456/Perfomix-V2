@@ -6,6 +6,7 @@ import { Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, Legend, ResponsiveCont
 import axios from "axios";
 import { toast } from 'react-toastify';
 import { generateProfessionalPDF } from '../../../utils/pdfGenerator';
+import { getPerformanceRating } from '../../../services/performanceRatingService';
 
 const StaffDashboard = () => {
   const [trendline, setTrendline] = useState(true);
@@ -14,6 +15,7 @@ const StaffDashboard = () => {
   const [totalScore, setTotalScore] = useState(0);
   const [evaluationId, setEvaluationId] = useState(null);
   const [showExportOptions, setShowExportOptions] = useState(false);
+  const [performance, setPerformance] = useState({ level: 'Loading...', color: '#9E9E9E', bg: '#F5F5F5' });
 
   useEffect(() => {
     const fetchEvaluations = async () => {
@@ -77,16 +79,16 @@ const StaffDashboard = () => {
     fetchEvaluations();
   }, []);
 
-  // Determine performance level and color
-  const getPerformanceLevel = (score) => {
-    if (score >= 90) return { level: "Excellent", color: "#4CAF50" };
-    if (score >= 80) return { level: "Very Good", color: "#8BC34A" };
-    if (score >= 70) return { level: "Good", color: "#FFC107" };
-    if (score >= 60) return { level: "Satisfactory", color: "#FF9800" };
-    return { level: "Needs Improvement", color: "#F44336" };
-  };
-
-  const performance = getPerformanceLevel(totalScore);
+  // Fetch performance rating from database
+  useEffect(() => {
+    const fetchRating = async () => {
+      if (totalScore > 0) {
+        const rating = await getPerformanceRating(totalScore);
+        setPerformance(rating);
+      }
+    };
+    fetchRating();
+  }, [totalScore]);
 
   // Find best and worst parameter
   const bestParam = parametersData.reduce((best, curr) => {

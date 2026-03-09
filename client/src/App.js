@@ -18,6 +18,8 @@ import SetPassword from "./screens/Employees/SetPassword";
 import ViewMatrix from "./screens/PerformanceMatrix/ViewMatrix";
 import LineManagerEvaluationScreen from "./screens/LineManagerEvaluation/LineManagerEvaluation";
 import EvaluateLineManager from "./screens/LineManagerEvaluation/EvaluateLineManager";
+import LineManagerPerformance from "./screens/LineManagerEvaluation/LineManagerPerformance";
+import LineManagerTeamsPerformance from "./screens/LineManagerEvaluation/LineManagerTeamsPerformance";
 import Organization from "./screens/Organizations/organization";
 import AddOrganization from "./screens/Organizations/add-organization";
 import Departments from "./screens/Departments/Departments";
@@ -30,8 +32,8 @@ import Cycleassingment from "./screens/Evalution Cycle/Cycleassingment"
 import AdminProfile from "./screens/Admin Settings/admin-profile";
 import AdminEditProfile from "./screens/Admin Settings/admin-editprofile";
 import ChangePassword from "./screens/Admin Settings/change-password";
+import PerformanceRatings from "./screens/Admin Settings/PerformanceRatings";
 import LineManagerDashboard from "./LineManager/screens/Dashboard/linemanager-dashboard";
-import LineManagerPerformance from './LineManager/screens/linemanager-performance';
 import TeamPerformance from "./LineManager/screens/TeamPerformance";
 import EmployeePerformanceReport from "./screens/Performance Report/performance-report";
 import ViewPerformanceReport from "./screens/Performance Report/view-performance-report";
@@ -111,6 +113,7 @@ function App() {
             <Route path="linemanager-profile" element={<SettingsLayout />} />
             <Route path="admin-edit-profile" element={<AdminEditProfile />} />
             <Route path="change-password" element={<ChangePassword />} />
+            <Route path="performance-ratings" element={<PerformanceRatings />} />
             <Route path="linemanager-dashboard" element={<LineManagerDashboard />} />
             <Route path="linemanager-performance" element={<LineManagerPerformance />} />
             <Route path="performance-report" element={<EmployeePerformanceReport />} />
@@ -119,6 +122,8 @@ function App() {
             <Route path="team-performance" element={<TeamPerformance />} />
             <Route path="performance-evaluation" element={<PerformanceEvaluation />} />
             <Route path="linemanager-evaluation" element={<LineManagerEvaluationScreen />} />
+            <Route path="line-manager-performance" element={<LineManagerPerformance />} />
+            <Route path="line-manager-teams-performance" element={<LineManagerTeamsPerformance />} />
             <Route path="evaluate-linemanager/:id" element={<EvaluateLineManager />} />
             <Route path="parameter-name" element={<ParameterName />} />
             <Route path="evaluate-employee" element={<EvaluateEmployee />} />
