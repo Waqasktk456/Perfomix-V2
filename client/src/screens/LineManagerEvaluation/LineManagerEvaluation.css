@@ -237,4 +237,45 @@
   top: 0;
   z-index: 10;
   background: #f8f9fa;
+}
+
+/* Evaluation Status Badges */
+.status-badge.completed {
+  background: #e6f4ea;
+  color: #1e7e34;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-badge.pending {
+  background: #fff3e0;
+  color: #e87722;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-badge.evaluated {
+  background: #e3f2fd;
+  color: #1565c0;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-badge.not-evaluated {
+  background: #fce4ec;
+  color: #c2185b;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
 } 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import RatingInput from '../../components/RatingInput';
 import './EvaluateLineManager.css';
 
 const EvaluateLineManager = () => {
@@ -93,12 +94,16 @@ const EvaluateLineManager = () => {
           if (evaluationResponse.data.success && evaluationResponse.data.evaluation) {
             const evalData = evaluationResponse.data.evaluation;
             
-            // Pre-fill scores if evaluation exists
+            // Pre-fill ratings and scores if evaluation exists
             if (evalData.details && evalData.details.length > 0) {
               const scores = {};
               evalData.details.forEach(detail => {
-                if (detail.score !== null) {
-                  scores[detail.parameter_id] = detail.score;
+                if (detail.rating !== null) {
+                  // Store rating, score will be auto-calculated
+                  scores[detail.parameter_id] = {
+                    rating: detail.rating,
+                    score: detail.score
+                  };
                 }
               });
               setEvaluations(scores);
@@ -122,21 +127,23 @@ const EvaluateLineManager = () => {
     fetchData();
   }, [id, state, navigate]);
 
-  const handleScoreChange = (paramId, score) => {
-    if (score === "" || (score >= 0 && score <= 100)) {
-      setEvaluations(prev => ({
-        ...prev,
-        [paramId]: score === "" ? "" : score
-      }));
-    }
+  const handleRatingChange = (paramId, rating) => {
+    const calculatedScore = (rating / 5) * 100;
+    setEvaluations(prev => ({
+      ...prev,
+      [paramId]: {
+        rating: rating,
+        score: calculatedScore
+      }
+    }));
   };
 
   const calculateTotalScore = () => {
     let total = 0;
     matrixParameters.forEach(param => {
-      const score = evaluations[param.id];
-      if (score !== undefined && score !== null && score !== '') {
-        total += (param.weight / 100) * score;
+      const evaluation = evaluations[param.id];
+      if (evaluation && evaluation.score !== undefined && evaluation.score !== null && evaluation.score !== '') {
+        total += (param.weight / 100) * evaluation.score;
       }
     });
     return total.toFixed(2);
@@ -148,12 +155,13 @@ const EvaluateLineManager = () => {
       return;
     }
 
-    const allScored = matrixParameters.every(param => {
-      return evaluations[param.id] !== undefined && evaluations[param.id] !== null && evaluations[param.id] !== '';
+    const allRated = matrixParameters.every(param => {
+      const evaluation = evaluations[param.id];
+      return evaluation && evaluation.rating !== undefined && evaluation.rating !== null && evaluation.rating !== '';
     });
     
-    if (!allScored) {
-      toast.error('Please provide scores for all parameters');
+    if (!allRated) {
+      toast.error('Please provide ratings for all parameters');
       return;
     }
 
@@ -173,7 +181,7 @@ const EvaluateLineManager = () => {
           status: 'completed',
           parameters: matrixParameters.map(param => ({
             parameter_id: param.id,
-            score: evaluations[param.id]
+            rating: evaluations[param.id].rating
           }))
         },
         config
@@ -245,28 +253,30 @@ const EvaluateLineManager = () => {
                   <th>Parameter</th>
                   <th>Description</th>
                   <th>Weight</th>
+                  <th>Rating (1-5)</th>
                   <th>Score</th>
                   <th>Weighted Score</th>
                 </tr>
               </thead>
               <tbody>
                 {matrixParameters.map(parameter => {
-                  const score = evaluations[parameter.id];
-                  const weightedScore = ((parameter.weight / 100) * (score || 0)).toFixed(2);
+                  const evaluation = evaluations[parameter.id] || {};
+                  const score = evaluation.score || 0;
+                  const weightedScore = ((parameter.weight / 100) * score).toFixed(2);
                   return (
                     <tr key={parameter.id}>
                       <td>{parameter.parameter}</td>
                       <td>{parameter.description}</td>
                       <td>{parameter.weight}%</td>
                       <td>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={score === undefined || score === null ? '' : score}
-                          onChange={(e) => handleScoreChange(parameter.id, e.target.value === "" ? "" : parseInt(e.target.value))}
-                          className="lm-eval-form-score-input"
+                        <RatingInput
+                          value={evaluation.rating}
+                          onChange={(rating) => handleRatingChange(parameter.id, rating)}
+                          showLabel={false}
                         />
+                      </td>
+                      <td style={{ fontWeight: '600', color: '#007bff' }}>
+                        {score ? `${score}%` : '-'}
                       </td>
                       <td>{weightedScore}</td>
                     </tr>

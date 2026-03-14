@@ -457,6 +457,7 @@ exports.getEvaluationForm = async (req, res) => {
         p.id AS parameter_id,
         p.parameter_name,
         pmx.weightage,
+        COALESCE(ed.rating, NULL) AS rating,
         COALESCE(ed.score, NULL) AS score,
         COALESCE(ed.comments, '') AS feedback
       FROM evaluations ev
@@ -520,25 +521,26 @@ exports.saveDraftEvaluation = async (req, res) => {
     const employee_id = evalCheck[0].employee_id;
 
     for (const param of parameters) {
-      if (param.score !== null && param.score !== undefined && param.score !== '') {
-        const score = Number(param.score);
+      if (param.rating !== null && param.rating !== undefined && param.rating !== '') {
+        const rating = Number(param.rating);
 
-        if (score < 0 || score > 100) {
+        if (rating < 1 || rating > 5) {
           await connection.rollback();
           return res.status(400).json({
             success: false,
-            message: `Score for parameter ${param.parameter_id} must be between 0 and 100`
+            message: `Rating for parameter ${param.parameter_id} must be between 1 and 5`
           });
         }
 
+        // Insert rating - score will be auto-calculated by database trigger
         await connection.query(`
-          INSERT INTO evaluation_details (evaluation_id, parameter_id, score, comments)
+          INSERT INTO evaluation_details (evaluation_id, parameter_id, rating, comments)
           VALUES (?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
-            score = VALUES(score),
+            rating = VALUES(rating),
             comments = VALUES(comments),
             updated_at = CURRENT_TIMESTAMP
-        `, [evaluation_id, param.parameter_id, score, param.comments || null]);
+        `, [evaluation_id, param.parameter_id, rating, param.comments || null]);
 
         const [updateResult] = await connection.query(`
           UPDATE evaluation_status 
@@ -623,35 +625,36 @@ exports.submitEvaluation = async (req, res) => {
     `, [matrix_id]);
 
     const totalParams = paramCount[0].total;
-    const filledParams = parameters.filter(p => p.score !== null && p.score !== undefined && p.score !== '');
+    const filledParams = parameters.filter(p => p.rating !== null && p.rating !== undefined && p.rating !== '');
 
     if (filledParams.length !== totalParams) {
       await connection.rollback();
       return res.status(400).json({
         success: false,
-        message: `All ${totalParams} parameters must be filled. You have filled ${filledParams.length}.`
+        message: `All ${totalParams} parameters must be rated. You have rated ${filledParams.length}.`
       });
     }
 
     for (const param of parameters) {
-      const score = Number(param.score);
+      const rating = Number(param.rating);
 
-      if (score < 0 || score > 100) {
+      if (rating < 1 || rating > 5) {
         await connection.rollback();
         return res.status(400).json({
           success: false,
-          message: `Score for parameter ${param.parameter_id} must be between 0 and 100`
+          message: `Rating for parameter ${param.parameter_id} must be between 1 and 5`
         });
       }
 
+      // Insert rating - score will be auto-calculated by database trigger
       await connection.query(`
-        INSERT INTO evaluation_details (evaluation_id, parameter_id, score, comments)
+        INSERT INTO evaluation_details (evaluation_id, parameter_id, rating, comments)
         VALUES (?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
-          score = VALUES(score),
+          rating = VALUES(rating),
           comments = VALUES(comments),
           updated_at = CURRENT_TIMESTAMP
-      `, [evaluation_id, param.parameter_id, score, param.comments || null]);
+      `, [evaluation_id, param.parameter_id, rating, param.comments || null]);
 
       const [updateResult] = await connection.query(`
         UPDATE evaluation_status 
@@ -667,7 +670,7 @@ exports.submitEvaluation = async (req, res) => {
       }
     }
 
-    // Calculate overall score before final submission
+    // Calculate overall score before final submission (score is auto-calculated from rating)
     const [[scoreResult]] = await connection.query(`
       SELECT SUM((ed.score * pmx.weightage) / 100) as overall_score
       FROM evaluation_details ed
@@ -677,14 +680,28 @@ exports.submitEvaluation = async (req, res) => {
 
     const finalScore = scoreResult.overall_score || 0;
 
+    // Get the performance rating based on the overall score
+    const [[ratingResult]] = await connection.query(`
+      SELECT id, name
+      FROM performance_ratings
+      WHERE min_score <= ? AND max_score >= ?
+      ORDER BY min_score DESC
+      LIMIT 1
+    `, [finalScore, finalScore]);
+
+    const ratingId = ratingResult ? ratingResult.id : null;
+    const ratingName = ratingResult ? ratingResult.name : null;
+
     await connection.query(`
       UPDATE evaluations 
       SET status = 'completed', 
           overall_score = ?,
+          rating_id = ?,
+          rating_name = ?,
           submitted_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `, [finalScore, evaluation_id]);
+    `, [finalScore, ratingId, ratingName, evaluation_id]);
 
     await connection.commit();
 
@@ -869,6 +886,106 @@ exports.getTeamEmployeesForEvaluation = async (req, res) => {
   }
 };
 
+exports.getMyOwnEvaluation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { cycleId } = req.query; // Get cycle ID from query params
+
+    // Get employee ID from user ID
+    const [employeeRows] = await db.query('SELECT id FROM employees WHERE user_id = ?', [userId]);
+    
+    if (employeeRows.length === 0) {
+      return res.json({
+        success: true,
+        message: "No employee record found",
+        parameters: [],
+        cycles: []
+      });
+    }
+
+    const employeeId = employeeRows[0].id;
+
+    // Get all cycles where this line manager has been evaluated
+    const [cycles] = await db.query(`
+      SELECT DISTINCT
+        ec.id,
+        ec.cycle_name,
+        ec.start_date,
+        ec.end_date,
+        ec.status
+      FROM line_manager_evaluations ev
+      JOIN evaluation_cycles ec ON ev.cycle_id = ec.id
+      WHERE ev.line_manager_id = ? AND ev.status = 'completed'
+      ORDER BY ec.created_at DESC
+    `, [employeeId]);
+
+    if (cycles.length === 0) {
+      return res.json({
+        success: true,
+        message: "No completed evaluation found",
+        parameters: [],
+        cycles: []
+      });
+    }
+
+    // Use provided cycleId or default to the newest (first in the list)
+    const selectedCycleId = cycleId || cycles[0].id;
+
+    // Find the evaluation for the selected cycle
+    const [evaluations] = await db.query(`
+      SELECT ev.id AS evaluation_id
+      FROM line_manager_evaluations ev
+      WHERE ev.line_manager_id = ? AND ev.cycle_id = ? AND ev.status = 'completed'
+      ORDER BY ev.updated_at DESC
+      LIMIT 1
+    `, [employeeId, selectedCycleId]);
+
+    if (evaluations.length === 0) {
+      return res.json({
+        success: true,
+        message: "No completed evaluation found for this cycle",
+        parameters: [],
+        cycles: cycles,
+        selectedCycleId: selectedCycleId
+      });
+    }
+
+    const evaluationId = evaluations[0].evaluation_id;
+
+    // Get parameters with scores and feedback
+    const [rows] = await db.query(`
+      SELECT 
+        p.id AS parameter_id,
+        p.parameter_name,
+        pmx.weightage,
+        COALESCE(ed.score, NULL) AS score,
+        COALESCE(ed.comments, '') AS feedback
+      FROM line_manager_evaluations ev
+      JOIN cycle_team_assignments cta ON ev.cycle_id = cta.cycle_id AND ev.line_manager_id = cta.line_manager_id
+      JOIN parameter_matrices pmx ON pmx.matrix_id = cta.matrix_id
+      JOIN parameters p ON pmx.parameter_id = p.id
+      LEFT JOIN line_manager_evaluation_details ed ON ed.evaluation_id = ev.id AND ed.parameter_id = p.id
+      WHERE ev.id = ?
+      ORDER BY p.parameter_name
+    `, [evaluationId]);
+
+    res.json({
+      success: true,
+      evaluation_id: evaluationId,
+      parameters: rows,
+      cycles: cycles,
+      selectedCycleId: selectedCycleId
+    });
+
+  } catch (error) {
+    console.error('Error fetching line manager own evaluation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load evaluation'
+    });
+  }
+};
+
 module.exports = {
   checkLineManagerCompletion: exports.checkLineManagerCompletion,
   getTeamsPerformance: exports.getTeamsPerformance,
@@ -877,5 +994,6 @@ module.exports = {
   getEvaluationForm: exports.getEvaluationForm,
   saveDraftEvaluation: exports.saveDraftEvaluation,
   submitEvaluation: exports.submitEvaluation,
-  sendReminder: exports.sendReminder
+  sendReminder: exports.sendReminder,
+  getMyOwnEvaluation: exports.getMyOwnEvaluation
 };

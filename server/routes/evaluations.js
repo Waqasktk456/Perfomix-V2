@@ -59,9 +59,9 @@ router.get('/line-manager/:employeeId/:cycleId', async (req, res) => {
       console.log('WARNING: No line manager matrix assigned to this cycle');
     }
 
-    // Fetch evaluation details with weightage from the line manager matrix
+    // Fetch evaluation details with weightage and rating from the line manager matrix
     const [details] = await db.query(
-      `SELECT ed.id, ed.parameter_id, ed.score, ed.comments, 
+      `SELECT ed.id, ed.parameter_id, ed.rating, ed.score, ed.comments, 
               p.parameter_name, 
               COALESCE(pm.weightage, 0) as weightage
        FROM evaluation_details ed
@@ -163,23 +163,36 @@ router.put('/line-manager/:employeeId/:cycleId', async (req, res) => {
 
     console.log('Updating evaluation ID:', evaluationId);
 
-    // Update evaluation with overall score, comments, and status
-    await connection.query(
-      `UPDATE evaluations 
-       SET overall_score = ?, comments = ?, areas_for_improvement = ?, status = ?, updated_at = NOW()
-       WHERE id = ?`,
-      [overall_score, comments, recommendation, status, evaluationId]
+    // Get the performance rating based on the overall score
+    const [[ratingResult]] = await connection.query(
+      `SELECT id, name
+       FROM performance_ratings
+       WHERE min_score <= ? AND max_score >= ?
+       ORDER BY min_score DESC
+       LIMIT 1`,
+      [overall_score, overall_score]
     );
 
-    // Update or insert evaluation details for each parameter
+    const ratingId = ratingResult ? ratingResult.id : null;
+    const ratingName = ratingResult ? ratingResult.name : null;
+
+    // Update evaluation with overall score, comments, rating, and status
+    await connection.query(
+      `UPDATE evaluations 
+       SET overall_score = ?, comments = ?, areas_for_improvement = ?, status = ?, rating_id = ?, rating_name = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [overall_score, comments, recommendation, status, ratingId, ratingName, evaluationId]
+    );
+
+    // Update or insert evaluation details for each parameter with rating
     for (const param of parameters) {
       await connection.query(
-        `INSERT INTO evaluation_details (evaluation_id, parameter_id, score, created_at, updated_at)
+        `INSERT INTO evaluation_details (evaluation_id, parameter_id, rating, created_at, updated_at)
          VALUES (?, ?, ?, NOW(), NOW())
          ON DUPLICATE KEY UPDATE 
-           score = VALUES(score), 
+           rating = VALUES(rating), 
            updated_at = NOW()`,
-        [evaluationId, param.parameter_id, param.score]
+        [evaluationId, param.parameter_id, param.rating]
       );
     }
 
@@ -435,33 +448,92 @@ router.get('/by-id/:evaluationId', async (req, res) => {
   try {
     const { evaluationId } = req.params;
 
-    // Get parameters with scores and feedback for this specific evaluation
-    const [rows] = await db.query(`
-      SELECT 
-        p.id AS parameter_id,
-        p.parameter_name AS parameter,
-        pmx.weightage,
-        COALESCE(ed.score, NULL) AS score,
-        COALESCE(ed.comments, '') AS feedback,
-        'completed' AS evaluation_status
+    console.log('Fetching evaluation by ID:', evaluationId);
+
+    // First check if this is a staff evaluation or line manager evaluation
+    const [[evalCheck]] = await db.query(`
+      SELECT ev.cycle_team_assignment_id, ev.cycle_id
       FROM evaluations ev
-      JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
-      JOIN parameter_matrices pmx ON pmx.matrix_id = cta.matrix_id
-      JOIN parameters p ON pmx.parameter_id = p.id
-      LEFT JOIN evaluation_details ed ON ed.evaluation_id = ev.id AND ed.parameter_id = p.id
       WHERE ev.id = ?
-      ORDER BY p.parameter_name
     `, [evaluationId]);
 
-    // Get the stored overall_score
+    console.log('Evaluation check:', evalCheck);
+
+    let rows;
+
+    if (evalCheck && evalCheck.cycle_team_assignment_id) {
+      // Staff evaluation - has cycle_team_assignment_id
+      console.log('Fetching STAFF evaluation details');
+      [rows] = await db.query(`
+        SELECT 
+          p.id AS parameter_id,
+          p.parameter_name AS parameter,
+          pmx.weightage,
+          COALESCE(ed.rating, CASE 
+            WHEN ed.score IS NOT NULL AND ed.score > 0 THEN ROUND(ed.score / 20)
+            ELSE NULL 
+          END) AS rating,
+          COALESCE(ed.score, NULL) AS score,
+          COALESCE(ed.comments, '') AS feedback,
+          'completed' AS evaluation_status
+        FROM evaluations ev
+        JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+        JOIN parameter_matrices pmx ON pmx.matrix_id = cta.matrix_id
+        JOIN parameters p ON pmx.parameter_id = p.id
+        LEFT JOIN evaluation_details ed ON ed.evaluation_id = ev.id AND ed.parameter_id = p.id
+        WHERE ev.id = ?
+        ORDER BY p.parameter_name
+      `, [evaluationId]);
+    } else if (evalCheck && evalCheck.cycle_id) {
+      // Line manager evaluation - no cycle_team_assignment_id
+      console.log('Fetching LINE MANAGER evaluation details');
+      [rows] = await db.query(`
+        SELECT 
+          p.id AS parameter_id,
+          p.parameter_name AS parameter,
+          pmx.weightage,
+          COALESCE(ed.rating, CASE 
+            WHEN ed.score IS NOT NULL AND ed.score > 0 THEN ROUND(ed.score / 20)
+            ELSE NULL 
+          END) AS rating,
+          COALESCE(ed.score, NULL) AS score,
+          COALESCE(ed.comments, '') AS feedback,
+          'completed' AS evaluation_status
+        FROM evaluations ev
+        JOIN evaluation_cycles ec ON ev.cycle_id = ec.id
+        JOIN parameter_matrices pmx ON pmx.matrix_id = ec.line_manager_matrix_id
+        JOIN parameters p ON pmx.parameter_id = p.id
+        LEFT JOIN evaluation_details ed ON ed.evaluation_id = ev.id AND ed.parameter_id = p.id
+        WHERE ev.id = ?
+        ORDER BY p.parameter_name
+      `, [evaluationId]);
+    } else {
+      console.log('No evaluation found');
+      return res.status(404).json({
+        success: false,
+        message: 'Evaluation not found'
+      });
+    }
+
+    console.log('Fetched rows:', rows.length);
+    if (rows.length > 0) {
+      console.log('Sample row with all fields:', JSON.stringify(rows[0], null, 2));
+      console.log('All ratings:', rows.map(r => ({ param: r.parameter, rating: r.rating, score: r.score })));
+    }
+
+    // Get the stored overall_score and cycle_id
     const [[overallScoreRow]] = await db.query(`
-      SELECT overall_score FROM evaluations WHERE id = ?
+      SELECT ev.overall_score, ev.cycle_id, ev.employee_id
+      FROM evaluations ev
+      WHERE ev.id = ?
     `, [evaluationId]);
 
     res.json({
       success: true,
       evaluation_id: evaluationId,
       overall_score: overallScoreRow?.overall_score || 0,
+      cycle_id: overallScoreRow?.cycle_id,
+      employee_id: overallScoreRow?.employee_id,
       evaluations: rows
     });
   } catch (error) {
@@ -538,7 +610,10 @@ router.get('/all-status', async (req, res) => {
         e.designation AS Designation,
         d.department_name AS Department_name,
         u.picture AS Profile_image,
+        t.id AS team_id,
+        t.team_name AS Team_name,
         ev.id as id,
+        ev.cycle_id,
         pm.id AS matrix_id,
         (SELECT COUNT(*) FROM parameter_matrices pmx2 WHERE pmx2.matrix_id = pm.id) AS total_params,
         (SELECT COUNT(*) 
@@ -614,6 +689,167 @@ router.post('/details', async (req, res) => {
   } catch (error) {
     console.error('Error adding evaluation detail:', error);
     res.status(500).json({ success: false, message: 'Failed to add evaluation detail', error: error.message });
+  }
+});
+
+// Admin: Get performance benchmark for any employee
+router.get('/benchmark/:employeeId/:cycleId', async (req, res) => {
+  try {
+    const { employeeId, cycleId } = req.params;
+    const { organizationId } = req.user;
+
+    console.log('Admin fetching benchmark for employee:', employeeId, 'cycle:', cycleId);
+
+    // Get employee's score and team/department info
+    const [employeeData] = await db.query(`
+      SELECT 
+        ev.overall_score,
+        e.team_id,
+        e.department_id,
+        e.organization_id
+      FROM evaluations ev
+      JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+      JOIN employees e ON ev.employee_id = e.id
+      WHERE ev.employee_id = ? AND ev.cycle_id = ? AND ev.status = 'completed' AND e.organization_id = ?
+      LIMIT 1
+    `, [employeeId, cycleId, organizationId]);
+
+    if (employeeData.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No evaluation found for this cycle',
+        employeeScore: null,
+        teamAverage: null,
+        departmentAverage: null,
+        companyAverage: null,
+        percentileRank: null
+      });
+    }
+
+    const { overall_score, team_id, department_id } = employeeData[0];
+
+    // Calculate team average
+    let teamAverage = null;
+    if (team_id) {
+      const [teamAvg] = await db.query(`
+        SELECT AVG(ev.overall_score) as avg_score
+        FROM evaluations ev
+        JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+        JOIN employees e ON ev.employee_id = e.id
+        WHERE e.team_id = ? AND ev.cycle_id = ? AND ev.status = 'completed'
+      `, [team_id, cycleId]);
+      teamAverage = (teamAvg[0].avg_score !== null && teamAvg[0].avg_score !== undefined) 
+        ? parseFloat(Number(teamAvg[0].avg_score).toFixed(1)) 
+        : null;
+    }
+
+    // Calculate department average
+    let departmentAverage = null;
+    if (department_id) {
+      const [deptAvg] = await db.query(`
+        SELECT AVG(ev.overall_score) as avg_score
+        FROM evaluations ev
+        JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+        JOIN employees e ON ev.employee_id = e.id
+        WHERE e.department_id = ? AND ev.cycle_id = ? AND ev.status = 'completed'
+      `, [department_id, cycleId]);
+      departmentAverage = (deptAvg[0].avg_score !== null && deptAvg[0].avg_score !== undefined) 
+        ? parseFloat(Number(deptAvg[0].avg_score).toFixed(1)) 
+        : null;
+    }
+
+    // Calculate company average
+    const [companyAvg] = await db.query(`
+      SELECT AVG(ev.overall_score) as avg_score
+      FROM evaluations ev
+      JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+      JOIN employees e ON ev.employee_id = e.id
+      WHERE e.organization_id = ? AND ev.cycle_id = ? AND ev.status = 'completed'
+    `, [organizationId, cycleId]);
+
+    const companyAverage = (companyAvg[0].avg_score !== null && companyAvg[0].avg_score !== undefined) 
+      ? parseFloat(Number(companyAvg[0].avg_score).toFixed(1)) 
+      : null;
+
+    // Calculate percentile rank
+    const [percentileData] = await db.query(`
+      SELECT 
+        COUNT(*) as total_employees,
+        SUM(CASE WHEN ev.overall_score < ? THEN 1 ELSE 0 END) as employees_below
+      FROM evaluations ev
+      JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+      JOIN employees e ON ev.employee_id = e.id
+      WHERE e.organization_id = ? AND ev.cycle_id = ? AND ev.status = 'completed'
+    `, [overall_score, organizationId, cycleId]);
+
+    const percentileRank = percentileData[0].total_employees > 0
+      ? Math.round((percentileData[0].employees_below / percentileData[0].total_employees) * 100)
+      : null;
+
+    res.json({
+      success: true,
+      employeeScore: parseFloat(Number(overall_score).toFixed(1)),
+      teamAverage: teamAverage,
+      departmentAverage: departmentAverage,
+      companyAverage: companyAverage,
+      percentileRank: percentileRank
+    });
+
+  } catch (error) {
+    console.error('Error fetching benchmark:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load benchmark data'
+    });
+  }
+});
+
+// Admin: Get performance trend for any employee
+router.get('/trend/:employeeId', async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { organizationId } = req.user;
+
+    console.log('Admin fetching trend for employee:', employeeId);
+
+    // Get all completed evaluations with cycle info and rating
+    const [evaluations] = await db.query(`
+      SELECT 
+        ev.id AS evaluation_id,
+        ev.cycle_id,
+        ev.overall_score,
+        ev.rating_name,
+        ec.cycle_name,
+        ec.start_date,
+        ec.end_date,
+        ev.updated_at
+      FROM evaluations ev
+      JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+      JOIN evaluation_cycles ec ON ev.cycle_id = ec.id
+      JOIN employees e ON ev.employee_id = e.id
+      WHERE ev.employee_id = ? AND ev.status = 'completed' AND e.organization_id = ?
+      ORDER BY ec.start_date ASC, ev.updated_at ASC
+    `, [employeeId, organizationId]);
+
+    console.log('Found evaluations for trend:', evaluations.length);
+
+    res.json({
+      success: true,
+      trend: evaluations.map(ev => ({
+        cycle_id: ev.cycle_id,
+        cycle_name: ev.cycle_name,
+        overall_score: ev.overall_score,
+        rating_name: ev.rating_name,
+        date: ev.updated_at
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error fetching trend:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load trend data'
+    });
   }
 });
 

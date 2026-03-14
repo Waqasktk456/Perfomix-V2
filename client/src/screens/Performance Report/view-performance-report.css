@@ -205,6 +205,7 @@
   padding: 20px;
   display: flex;
   justify-content: center;
+  width: 100%;
 }
 
 .score-card {
@@ -216,7 +217,6 @@
   align-items: center;
   gap: 40px;
   width: 100%;
-  max-width: 800px;
   transition: transform 0.3s ease;
 }
 
@@ -351,4 +351,86 @@
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
+}
+
+.trend-header {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #002F6C;
+  margin-bottom: 8px;
+}
+
+.trend-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  font-weight: 500;
+}
+
+.percentile-badge {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  border-left: 4px solid #ff9800;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.percentile-icon {
+  font-size: 28px;
+}
+
+.percentile-text {
+  font-size: 15px;
+  color: #e65100;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.percentile-text strong {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.benchmark-insights {
+  background: #f8f9fa;
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.benchmark-insight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.6;
+}
+
+.insight-bullet {
+  color: #003f88;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.benchmark-chart-container {
+  margin-top: 20px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-size: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
 }

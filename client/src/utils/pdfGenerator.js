@@ -278,10 +278,42 @@ export const generateProfessionalPDF = async (data, type) => {
 
             const level = getLevel(overallScore);
 
-            // Insights Logic
+            // Insights Logic - Top 3 strengths and bottom 2 weaknesses
             const sortedParams = [...performance.parameters].sort((a, b) => b.score - a.score);
-            const topStrengths = sortedParams.slice(0, 2);
-            const weakness = sortedParams[sortedParams.length - 1];
+            const topStrengths = sortedParams.slice(0, 3);
+            const weakestAreas = sortedParams.slice(-2);
+
+            // Generate development recommendations
+            const developmentRecommendations = weakestAreas.map(param => {
+                const recommendations = {
+                    'Communication': 'Attend communication skills workshops and practice active listening',
+                    'Leadership': 'Take on team lead responsibilities and complete leadership training',
+                    'Technical Skills': 'Enroll in relevant technical courses and certifications',
+                    'Problem Solving': 'Participate in problem-solving exercises and case studies',
+                    'Teamwork': 'Engage more in collaborative projects and team activities',
+                    'Time Management': 'Use productivity tools and attend time management seminars',
+                    'Innovation': 'Participate in brainstorming sessions and innovation challenges',
+                    'Quality': 'Focus on quality assurance practices and attention to detail'
+                };
+                
+                const matchedKey = Object.keys(recommendations).find(key => 
+                    param.parameter_name.toLowerCase().includes(key.toLowerCase())
+                );
+                
+                return {
+                    parameter: param.parameter_name,
+                    recommendation: matchedKey ? recommendations[matchedKey] : `Focus on improving ${param.parameter_name} through targeted training and practice`
+                };
+            });
+
+            // Performance Rating Legend (standard ratings)
+            const ratingLegend = [
+                { range: '90 - 100', label: 'Excellent', color: '#10B981', bg: '#D1FAE5', desc: 'Outstanding performance, exceeds all expectations' },
+                { range: '80 - 89', label: 'Very Good', color: '#3B82F6', bg: '#DBEAFE', desc: 'Consistently exceeds expectations' },
+                { range: '70 - 79', label: 'Good', color: '#5E35B1', bg: '#E8EAF6', desc: 'Meets and sometimes exceeds expectations' },
+                { range: '60 - 69', label: 'Satisfactory', color: '#F59E0B', bg: '#FEF3C7', desc: 'Meets expectations consistently' },
+                { range: 'Below 60', label: 'Needs Improvement', color: '#EF4444', bg: '#FEE2E2', desc: 'Performance below expectations, requires development' }
+            ];
 
             // Comparison Logic
             let trendHtml = '';
@@ -307,16 +339,23 @@ export const generateProfessionalPDF = async (data, type) => {
             }
 
             html = `
-                <div style="font-family: 'Inter', sans-serif; color: #1E293B; max-width: 800px; margin: 0 auto; background: white;">
-                    <!-- Header -->
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0F172A; padding-bottom: 20px; margin-bottom: 30px;">
-                        <div>
-                            <h1 style="font-size: 24px; font-weight: 800; color: #0F172A; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">${cycle_details.organization}</h1>
-                            <h2 style="font-size: 16px; font-weight: 500; color: #475569; margin: 5px 0 0 0;">Individual Performance Report</h2>
-                        </div>
-                        <div style="text-align: right; font-size: 11px; color: #64748B;">
-                            <div><strong>Cycle:</strong> ${cycle_details.name}</div>
-                            <div><strong>Date:</strong> ${timestamp}</div>
+                <div style="font-family: 'Inter', 'Segoe UI', sans-serif; color: #1E293B; max-width: 800px; margin: 0 auto; background: white; padding: 40px;">
+                    
+                    <!-- Professional Header -->
+                    <div style="border-bottom: 4px solid #003f88; padding-bottom: 20px; margin-bottom: 35px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                <h1 style="font-size: 26px; font-weight: 800; color: #003f88; margin: 0; text-transform: uppercase; letter-spacing: 1px;">${cycle_details.organization}</h1>
+                                <h2 style="font-size: 18px; font-weight: 600; color: #475569; margin: 8px 0 0 0;">Individual Performance Evaluation Report</h2>
+                                <div style="margin-top: 12px; font-size: 12px; color: #64748B; display: flex; gap: 15px; align-items: center;">
+                                    <span><strong>Evaluation Cycle:</strong> ${cycle_details.name}</span>
+                                    <span style="color: #CBD5E1;">|</span>
+                                    <span><strong>Report Generated:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                                </div>
+                            </div>
+                            <div style="width: 70px; height: 70px; border: 3px solid #003f88; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #F8FAFC;">
+                                <div style="font-size: 32px; color: #003f88;">★</div>
+                            </div>
                         </div>
                     </div>
 
@@ -377,30 +416,26 @@ export const generateProfessionalPDF = async (data, type) => {
                             </div>
                             <div style="background: #FEF2F2; border: 1px solid #FECACA; border-radius: 6px; padding: 15px;">
                                 <div style="font-size: 12px; font-weight: 700; color: #991B1B; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                                    <span style="font-size: 14px;">!</span> AREA FOR IMPROVEMENT
+                                    <span style="font-size: 14px;">!</span> AREAS FOR IMPROVEMENT
                                 </div>
-                                <p style="margin: 0; font-size: 12px; color: #7F1D1D;">
-                                    ${weakness ? `<strong>${weakness.parameter_name}</strong> (${weakness.score}%) - Focus on development in this area.` : 'No significant weakness identified.'}
-                                </p>
+                                <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #7F1D1D;">
+                                    ${weakestAreas.map(p => `<li style="margin-bottom: 4px;"><strong>${p.parameter_name}</strong> (${p.score}%)</li>`).join('')}
+                                </ul>
                             </div>
-                        </div>
-                        <div style="margin-top: 15px; font-size: 12px; color: #475569; font-style: italic;">
-                            <strong>Summary:</strong> ${employee_details.name} has achieved an overall score of ${overallScore}%, categorized as ${level.label}.
-                            The strongest performance was observed in ${topStrengths[0]?.parameter_name}, while ${weakness?.parameter_name} requires attention.
                         </div>
                     </div>
 
-                    <!-- Detailed Evaluation Table -->
+                    <!-- Detailed Parameter Evaluation Table -->
                     <div style="margin-bottom: 40px;">
-                        <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; margin-bottom: 20px;">Detailed Evaluation</h3>
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; margin-bottom: 20px;">Detailed Parameter Evaluation</h3>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
                             <thead>
                                 <tr style="background: #F8FAFC; color: #475569; text-align: left;">
-                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0;">Parameter</th>
-                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0; text-align: center;">Weight</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0;">Performance Parameter</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0; text-align: center;">Weight (%)</th>
                                     <th style="padding: 10px; border-bottom: 2px solid #E2E8F0; text-align: center;">Score</th>
-                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0; width: 30%;">Performance Indicator</th>
-                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0; text-align: right;">Weighted</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0; width: 25%;">Progress</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0; text-align: right;">Weighted Score</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -414,49 +449,85 @@ export const generateProfessionalPDF = async (data, type) => {
                                         <td style="padding: 12px 10px; border-bottom: 1px solid #F1F5F9; text-align: center; color: #64748B;">${p.weightage}%</td>
                                         <td style="padding: 12px 10px; border-bottom: 1px solid #F1F5F9; text-align: center; font-weight: 700; color: ${pLevel.color};">${p.score}</td>
                                         <td style="padding: 12px 10px; border-bottom: 1px solid #F1F5F9;">
-                                            <div style="background: #F1F5F9; height: 6px; border-radius: 3px; overflow: hidden;">
+                                            <div style="background: #F1F5F9; height: 8px; border-radius: 4px; overflow: hidden;">
                                                 <div style="width: ${p.score}%; background: ${pLevel.bar}; height: 100%;"></div>
                                             </div>
                                         </td>
-                                        <td style="padding: 12px 10px; border-bottom: 1px solid #F1F5F9; text-align: right; font-weight: 700; color: #0F172A;">${parseFloat(p.weighted_score).toFixed(2)}</td>
+                                        <td style="padding: 12px 10px; border-bottom: 1px solid #F1F5F9; text-align: right; font-weight: 700; color: #0F172A;">${(p.score * p.weightage / 100).toFixed(2)}</td>
                                     </tr>
                                     `;
             }).join('')}
                             </tbody>
                             <tfoot>
                                 <tr style="background: #F8FAFC;">
-                                    <td colspan="3" style="padding: 10px; text-align: right; font-weight: 700; color: #475569;">TOTALS</td>
-                                    <td style="padding: 10px;"></td>
-                                    <td style="padding: 10px; text-align: right; font-weight: 800; color: #0F172A; font-size: 14px;">${weightedScore.toFixed(2)}</td>
+                                    <td colspan="4" style="padding: 12px 10px; text-align: right; font-weight: 700; color: #475569; font-size: 12px;">TOTAL SCORE:</td>
+                                    <td style="padding: 12px 10px; text-align: right; font-weight: 800; color: #0F172A; font-size: 14px;">${weightedScore.toFixed(2)}</td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
 
-                    <!-- Feedback & Recommendations -->
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 30px; margin-bottom: 40px;">
-                        <div>
-                            <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; margin-bottom: 15px;">Manager Feedback</h3>
-                            <blockquote style="margin: 0; background: #F8FAFC; border-left: 4px solid #3B82F6; padding: 15px; font-style: italic; color: #475569; font-size: 13px; line-height: 1.6;">
-                                "${performance.manager_remarks || 'No specific feedback provided for this cycle.'}"
-                            </blockquote>
-                        </div>
-                        <div>
-                            <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; margin-bottom: 15px;">Recommendations & Development</h3>
-                            <div style="border: 1px dashed #CBD5E1; padding: 15px; border-radius: 6px; color: #475569; font-size: 13px;">
-                                <ul style="margin: 0; padding-left: 20px;">
-                                    <li style="margin-bottom: 5px;">Maintain performance in <strong>${topStrengths[0]?.parameter_name}</strong>.</li>
-                                    <li style="margin-bottom: 5px;">Focus on improving <strong>${weakness?.parameter_name}</strong> through targeted training or mentorship.</li>
-                                    <li>Review progress in the next quarterly check-in.</li>
-                                </ul>
-                            </div>
+                    <!-- Manager Feedback Section -->
+                    <div style="margin-bottom: 40px;">
+                        <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; margin-bottom: 15px;">Manager Feedback</h3>
+                        <blockquote style="margin: 0; background: #F8FAFC; border-left: 4px solid #3B82F6; padding: 15px; font-style: italic; color: #475569; font-size: 12px; line-height: 1.6;">
+                            "${performance.manager_remarks || 'Manager feedback was not provided for this evaluation cycle.'}"
+                        </blockquote>
+                    </div>
+
+                    <!-- Development Recommendations Section -->
+                    <div style="margin-bottom: 40px;">
+                        <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; margin-bottom: 15px;">Development Recommendations</h3>
+                        <div style="background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 6px; padding: 15px;">
+                            <p style="margin: 0 0 10px 0; font-size: 12px; color: #78350F;">Based on the evaluation results, the following development actions are recommended:</p>
+                            <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #78350F;">
+                                ${developmentRecommendations.map(rec => `
+                                    <li style="margin-bottom: 8px;">
+                                        <strong>${rec.parameter}:</strong> ${rec.recommendation}
+                                    </li>
+                                `).join('')}
+                            </ul>
                         </div>
                     </div>
 
-                    <!-- Footer -->
-                    <div style="border-top: 1px solid #E2E8F0; padding-top: 15px; display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; text-transform: uppercase;">
-                        <div>Confidential • ${cycle_details.organization}</div>
-                        <div>Page 1 of 1</div>
+                    <!-- Performance Rating Legend -->
+                    <div style="margin-bottom: 40px;">
+                        <h3 style="font-size: 14px; font-weight: 700; color: #0F172A; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px; margin-bottom: 15px;">Performance Rating Legend</h3>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                            <thead>
+                                <tr style="background: #F8FAFC; color: #475569; text-align: left;">
+                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0; text-align: center;">Score Range</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0;">Rating</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #E2E8F0;">Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ratingLegend.map(rating => `
+                                    <tr>
+                                        <td style="padding: 10px; border-bottom: 1px solid #F1F5F9; text-align: center; font-weight: 600;">${rating.range}</td>
+                                        <td style="padding: 10px; border-bottom: 1px solid #F1F5F9;">
+                                            <span style="background: ${rating.bg}; color: ${rating.color}; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; display: inline-block;">
+                                                ${rating.label}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 10px; border-bottom: 1px solid #F1F5F9; color: #64748B;">${rating.desc}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Confidentiality Notice Footer -->
+                    <div style="border-top: 2px solid #E2E8F0; padding-top: 20px; margin-top: 40px;">
+                        <div style="background: #FEF2F2; border-left: 4px solid #EF4444; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                            <p style="margin: 0; font-size: 11px; color: #7F1D1D; line-height: 1.5;">
+                                <strong>CONFIDENTIALITY NOTICE:</strong> This report contains confidential employee performance information and is intended for internal organizational use only. Unauthorized distribution or disclosure is strictly prohibited.
+                            </p>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94A3B8; text-transform: uppercase;">
+                            <div>Confidential • ${cycle_details.organization}</div>
+                            <div>Individual Performance Report • Page 1 of 1</div>
+                        </div>
                     </div>
                 </div>
             `;

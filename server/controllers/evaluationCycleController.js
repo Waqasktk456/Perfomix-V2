@@ -85,6 +85,10 @@ exports.getLineManagersByCycle = async (req, res) => {
   const { id } = req.params;
   const { organizationId: organization_id } = req.user || {};
 
+  console.log('=== getLineManagersByCycle ===');
+  console.log('Cycle ID:', id);
+  console.log('Organization ID:', organization_id);
+
   if (!organization_id) {
     return res.status(401).json({ error: 'Unauthorized: Missing organization' });
   }
@@ -102,8 +106,24 @@ exports.getLineManagersByCycle = async (req, res) => {
         e.role,
         d.Department_name as department_name,
         COUNT(DISTINCT cta.id) as assigned_teams_count,
+        COUNT(ev.id) as total_evaluations,
         SUM(CASE WHEN ev.status = 'completed' THEN 1 ELSE 0 END) as completed_evaluations,
-        COUNT(ev.id) as total_evaluations
+        (COUNT(ev.id) - COALESCE(SUM(CASE WHEN ev.status = 'completed' THEN 1 ELSE 0 END), 0)) as pending_count,
+        CASE 
+          WHEN COUNT(ev.id) > 0 AND COUNT(ev.id) = SUM(CASE WHEN ev.status = 'completed' THEN 1 ELSE 0 END)
+          THEN 'Completed'
+          ELSE 'Pending'
+        END as evaluation_status,
+        (SELECT CASE 
+          WHEN COUNT(*) > 0 THEN 'Evaluated'
+          ELSE 'Not Evaluated'
+        END
+        FROM evaluations lm_ev
+        WHERE lm_ev.employee_id = e.id
+          AND lm_ev.cycle_id = ?
+          AND lm_ev.cycle_team_assignment_id IS NULL
+          AND lm_ev.status = 'completed'
+        ) as admin_evaluation_status
       FROM cycle_team_assignments cta
       JOIN employees e ON cta.line_manager_id = e.id
       LEFT JOIN departments d ON e.department_id = d.id
@@ -112,7 +132,19 @@ exports.getLineManagersByCycle = async (req, res) => {
         AND e.organization_id = ?
       GROUP BY e.id, e.first_name, e.last_name, e.email, e.designation, e.is_active, e.role, d.Department_name
       ORDER BY e.first_name, e.last_name
-    `, [id, organization_id]);
+    `, [id, id, organization_id]);
+
+    console.log('Found line managers:', lineManagers.length);
+    if (lineManagers.length > 0) {
+      console.log('Sample line manager data:', {
+        name: `${lineManagers[0].first_name} ${lineManagers[0].last_name}`,
+        total_evaluations: lineManagers[0].total_evaluations,
+        completed_evaluations: lineManagers[0].completed_evaluations,
+        pending_count: lineManagers[0].pending_count,
+        evaluation_status: lineManagers[0].evaluation_status,
+        admin_evaluation_status: lineManagers[0].admin_evaluation_status
+      });
+    }
 
     res.json(lineManagers);
   } catch (error) {

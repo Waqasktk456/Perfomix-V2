@@ -28,51 +28,133 @@ const LineManagerDashboard = () => {
   const [chartData, setChartData] = useState([]);
   const [totalScore, setTotalScore] = useState(0);
   const [performance, setPerformance] = useState({ level: 'Loading...', color: '#9E9E9E', bg: '#F5F5F5' });
+  const [cycles, setCycles] = useState([]);
+  const [selectedCycleId, setSelectedCycleId] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Fetch all cycles first
+    const fetchCycles = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        const response = await axios.get('http://localhost:5000/api/cycles', config);
+        const cyclesData = Array.isArray(response.data) ? response.data : [];
+        
+        console.log('Fetched cycles:', cyclesData);
+        setCycles(cyclesData);
+        
+        // Automatically select the most recent cycle (first in the list)
+        if (cyclesData.length > 0 && !selectedCycleId) {
+          setSelectedCycleId(cyclesData[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching cycles:', error);
+        toast.error('Failed to fetch evaluation cycles');
+      }
+    };
+
+    fetchCycles();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedCycleId) return;
+
     const fetchEvaluations = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
 
         const config = { headers: { Authorization: `Bearer ${token}` } };
-        const res = await axios.get('http://localhost:5000/api/staff/my-evaluation', config);
+        
+        // First, get the employee ID from the token
+        const userId = localStorage.getItem('userId');
+        
+        // Fetch the line manager's evaluation using the same endpoint as admin
+        const response = await axios.get(
+          `http://localhost:5000/api/evaluations/line-manager/${userId}/${selectedCycleId}`,
+          config
+        );
 
-        if (res.data.success && Array.isArray(res.data.parameters)) {
-          setParametersData(res.data.parameters.map(ev => ({
-            parameter: ev.parameter_name,
-            score: ev.score,
-            feedback: ev.feedback,
-            recommendations: ev.recommendation || "",
-            weightage: ev.weightage
+        console.log('Line Manager Evaluation Response:', response.data);
+
+        if (response.data.success && response.data.evaluation) {
+          const evalData = response.data.evaluation;
+          
+          // Map evaluation details to performance data format
+          const mappedData = (evalData.details || []).map(detail => {
+            const rawScore = detail.score || 0;
+            const weight = detail.weightage || 0;
+            const rating = detail.rating || 0;
+            const weightedScore = ((weight / 100) * rawScore).toFixed(2);
+            // For chart: Convert rating (1-5) to percentage (20-100)
+            const percentageScore = rating > 0 ? (rating * 20) : 0;
+            
+            return {
+              parameter: detail.parameter_name,
+              weightage: weight,
+              rating: rating,
+              score: rawScore,
+              weightedScore: parseFloat(weightedScore),
+              percentageScore: percentageScore,
+              feedback: detail.comments || '-',
+              recommendations: evalData.recommendation || evalData.areas_for_improvement || '-'
+            };
+          });
+
+          setParametersData(mappedData);
+          
+          // Set chart data with percentage scores
+          setChartData(mappedData.map(item => ({
+            parameter: item.parameter,
+            score: item.score,
+            rating: item.rating,
+            weightage: item.weightage,
+            weightedScore: item.weightedScore,
+            percentageScore: item.percentageScore
           })));
-          setChartData(res.data.parameters.map(ev => ({
-            parameter: ev.parameter_name,
-            score: Number(ev.score)
-          })));
 
-          const weightedScores = res.data.parameters.map(e => ((Number(e.weightage) / 100) * Number(e.score)));
-          const total = weightedScores.reduce((acc, curr) => acc + curr, 0);
-          setTotalScore(total.toFixed(2));
+          // Calculate total score from weighted scores
+          const total = mappedData.reduce((acc, curr) => acc + (Number(curr.weightedScore) || 0), 0);
+          console.log('Calculated total score:', total);
+          setTotalScore(total); // Store as number, not string
 
-          if (res.data.evaluation_id) {
-            setEvaluationId(res.data.evaluation_id);
+          if (evalData.id) {
+            setEvaluationId(evalData.id);
           }
+        } else {
+          console.log('No evaluation found for this cycle');
+          toast.info('No evaluation found for the selected cycle');
+          setParametersData([]);
+          setChartData([]);
+          setTotalScore(0);
+          setEvaluationId(null);
         }
       } catch (error) {
         console.error('Error fetching LM own performance:', error);
-        toast.error('Failed to fetch performance data');
+        if (error.response?.status === 404) {
+          toast.info('No evaluation found for the selected cycle');
+        } else {
+          toast.error('Failed to fetch performance data');
+        }
+        setParametersData([]);
+        setChartData([]);
+        setTotalScore(0);
       }
     };
 
     fetchEvaluations();
-  }, []);
+  }, [selectedCycleId]);
 
   // Fetch performance rating from database
   useEffect(() => {
     const fetchRating = async () => {
       if (totalScore > 0) {
+        console.log('Fetching rating for score:', totalScore);
         const rating = await getPerformanceRating(totalScore);
+        console.log('Fetched rating:', rating);
         setPerformance(rating);
       }
     };
@@ -81,14 +163,14 @@ const LineManagerDashboard = () => {
 
   // Best and worst parameter logic
   const bestParam = parametersData.reduce((best, curr) => {
-    const currScore = ((Number(curr.weightage) / 100) * Number(curr.score));
-    const bestScore = best ? ((Number(best.weightage) / 100) * Number(best.score)) : -Infinity;
+    const currScore = Number(curr.weightedScore) || 0;
+    const bestScore = best ? (Number(best.weightedScore) || 0) : -Infinity;
     return currScore > bestScore ? curr : best;
   }, null);
 
   const worstParam = parametersData.reduce((worst, curr) => {
-    const currScore = ((Number(curr.weightage) / 100) * Number(curr.score));
-    const worstScore = worst ? ((Number(worst.weightage) / 100) * Number(worst.score)) : Infinity;
+    const currScore = Number(curr.weightedScore) || 0;
+    const worstScore = worst ? (Number(worst.weightedScore) || 0) : Infinity;
     return currScore < worstScore ? curr : worst;
   }, null);
 
@@ -123,7 +205,7 @@ const LineManagerDashboard = () => {
       <div className="total-score-container">
         <div className="score-card">
           <div className="score-circle" style={{ borderColor: performance.color }}>
-            <div className="score-value">{totalScore}</div>
+            <div className="score-value">{Number(totalScore).toFixed(1)}</div>
             <div className="score-label">Overall Score</div>
           </div>
           <div className="performance-details">
@@ -134,13 +216,13 @@ const LineManagerDashboard = () => {
               <div className="metric">
                 <span className="metric-label">Best Parameter</span>
                 <span className="metric-value">
-                  {bestParam ? `${bestParam.parameter} (${((Number(bestParam.weightage) / 100) * Number(bestParam.score)).toFixed(2)})` : '-'}
+                  {bestParam ? `${bestParam.parameter} (${bestParam.weightedScore})` : '-'}
                 </span>
               </div>
               <div className="metric">
                 <span className="metric-label">Needs Attention</span>
                 <span className="metric-value">
-                  {worstParam ? `${worstParam.parameter} (${((Number(worstParam.weightage) / 100) * Number(worstParam.score)).toFixed(2)})` : '-'}
+                  {worstParam ? `${worstParam.parameter} (${worstParam.weightedScore})` : '-'}
                 </span>
               </div>
             </div>
@@ -150,6 +232,31 @@ const LineManagerDashboard = () => {
       {/* Filter Header */}
       <div className="filters-container">
         <div className="toggle-buttons">
+          {/* Cycle Dropdown */}
+          <select 
+            className="cycle-dropdown"
+            value={selectedCycleId || ''}
+            onChange={(e) => setSelectedCycleId(e.target.value)}
+            style={{ 
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid #ddd',
+              marginRight: '10px',
+              fontSize: '14px',
+              color: '#6b7280',
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              outline: 'none',
+              minWidth: '250px'
+            }}
+          >
+            <option value="">Select Evaluation Cycle</option>
+            {cycles.map(cycle => (
+              <option key={cycle.id} value={cycle.id}>
+                {cycle.name || cycle.cycle_name}
+              </option>
+            ))}
+          </select>
           <button
             className={`toggle-btn ${selectedPeriod === "Monthly" ? "active" : ""}`}
             onClick={() => setSelectedPeriod("Monthly")}
@@ -172,6 +279,8 @@ const LineManagerDashboard = () => {
           <thead>
             <tr>
               <th>Parameter</th>
+              <th>Weight (%)</th>
+              <th>Rating (1-5)</th>
               <th>Score</th>
               <th>Feedback</th>
               <th>Recommendations</th>
@@ -181,12 +290,14 @@ const LineManagerDashboard = () => {
             {parametersData.length > 0 ? parametersData.map((param, index) => (
               <tr key={index}>
                 <td>{param.parameter}</td>
-                <td>{((Number(param.weightage) / 100) * Number(param.score)).toFixed(2)}</td>
+                <td>{param.weightage}%</td>
+                <td>{param.rating}</td>
+                <td>{param.weightedScore}</td>
                 <td>{param.feedback}</td>
                 <td>{param.recommendations}</td>
               </tr>
             )) : (
-              <tr><td colSpan="4">No evaluation data found.</td></tr>
+              <tr><td colSpan="6">No evaluation data found.</td></tr>
             )}
           </tbody>
         </table>
@@ -207,19 +318,43 @@ const LineManagerDashboard = () => {
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
             <XAxis dataKey="parameter" />
-            <YAxis label={{ value: "Score in Percentage(%)", angle: -90, position: "insideLeft" }} />
-            <Tooltip />
+            <YAxis 
+              domain={[0, 100]}
+              label={{ 
+                value: "Performance (%)", 
+                angle: -90, 
+                position: "insideLeft" 
+              }} 
+            />
+            <Tooltip 
+              formatter={(value, name, props) => {
+                if (name === 'Performance (%)') {
+                  const { score, weightage } = props.payload;
+                  return [`${value}%`, `Score: ${score} / ${weightage} (${value}%)`];
+                }
+                return [value, name];
+              }}
+              labelFormatter={(label) => `Parameter: ${label}`}
+            />
             <Legend />
-            <Bar dataKey="score" fill="#003f88" barSize={40}>
-              <LabelList dataKey="score" position="top" fill="#003f88" fontSize={14} fontWeight="bold" />
+            <Bar dataKey="percentageScore" fill="#003f88" barSize={40} name="Performance (%)">
+              <LabelList 
+                dataKey="percentageScore" 
+                position="top" 
+                fill="#003f88" 
+                fontSize={14} 
+                fontWeight="bold"
+                formatter={(value) => `${value}%`}
+              />
             </Bar>
             {trendline && (
               <Line
                 type="monotone"
-                dataKey="score"
+                dataKey="percentageScore"
                 stroke="#ff7300"
                 strokeWidth={2}
                 dot={{ fill: "#ff7300" }}
+                name="Trend"
               />
             )}
           </ComposedChart>

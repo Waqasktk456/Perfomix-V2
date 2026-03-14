@@ -81,6 +81,17 @@ const LineManagerEvaluationScreen = () => {
 
       console.log('Fetched line managers for cycle:', response.data);
       
+      if (response.data && response.data.length > 0) {
+        console.log('Sample line manager:', {
+          name: `${response.data[0].first_name} ${response.data[0].last_name}`,
+          total_evaluations: response.data[0].total_evaluations,
+          completed_evaluations: response.data[0].completed_evaluations,
+          pending_count: response.data[0].pending_count,
+          evaluation_status: response.data[0].evaluation_status,
+          admin_evaluation_status: response.data[0].admin_evaluation_status
+        });
+      }
+      
       setLineManagers(response.data || []);
     } catch (err) {
       console.error('Error fetching line managers:', err);
@@ -288,14 +299,15 @@ const LineManagerEvaluationScreen = () => {
                   <th>Email</th>
                   <th>Department</th>
                   <th>Designation</th>
-                  <th>Status</th>
+                  <th>Staff Evaluation Status</th>
+                  <th>Admin Evaluation Status</th>
                 </tr>
               </thead>
 
               <tbody>
                 {filteredLineManagers.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: "center" }}>
+                    <td colSpan="7" style={{ textAlign: "center" }}>
                       No line manager found
                     </td>
                   </tr>
@@ -317,9 +329,26 @@ const LineManagerEvaluationScreen = () => {
                       <td>{manager.department_name || "N/A"}</td>
                       <td>{manager.designation || "N/A"}</td>
                       <td>
-                        <span className={`status-badge ${manager.is_active ? 'active' : 'inactive'}`}>
-                          {manager.is_active ? 'Active' : 'Inactive'}
-                        </span>
+                        {manager.evaluation_status === 'Completed' ? (
+                          <span className="status-badge completed">
+                            Completed
+                          </span>
+                        ) : (
+                          <span className="status-badge pending">
+                            Pending ({manager.pending_count || manager.total_evaluations || 0})
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {manager.admin_evaluation_status === 'Evaluated' ? (
+                          <span className="status-badge evaluated">
+                            Evaluated
+                          </span>
+                        ) : (
+                          <span className="status-badge not-evaluated">
+                            Not Evaluated
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -330,17 +359,17 @@ const LineManagerEvaluationScreen = () => {
 
           <button
             className="organization-view-details-btn"
-            onClick={handleEvaluate}
-            disabled={!selectedLineManager}
+            onClick={handleViewPerformance}
+            disabled={!selectedLineManager || !selectedCycleId}
             style={{
-              opacity: selectedLineManager ? 1 : 0.5,
-              cursor: selectedLineManager ? 'pointer' : 'not-allowed',
+              opacity: (selectedLineManager && selectedCycleId) ? 1 : 0.5,
+              cursor: (selectedLineManager && selectedCycleId) ? 'pointer' : 'not-allowed',
               position: "fixed",
               bottom: 30,
-              right: 380,
+              right: 30,
             }}
           >
-            Evaluate Line Manager
+            View Performance
           </button>
 
           <button
@@ -352,7 +381,7 @@ const LineManagerEvaluationScreen = () => {
               cursor: (selectedLineManager && selectedCycleId) ? 'pointer' : 'not-allowed',
               position: "fixed",
               bottom: 30,
-              right: 190,
+              right: 230,
             }}
           >
             View Teams Performance
@@ -360,17 +389,17 @@ const LineManagerEvaluationScreen = () => {
 
           <button
             className="organization-view-details-btn"
-            onClick={handleViewPerformance}
-            disabled={!selectedLineManager || !selectedCycleId}
+            onClick={handleEvaluate}
+            disabled={!selectedLineManager}
             style={{
-              opacity: (selectedLineManager && selectedCycleId) ? 1 : 0.5,
-              cursor: (selectedLineManager && selectedCycleId) ? 'pointer' : 'not-allowed',
+              opacity: selectedLineManager ? 1 : 0.5,
+              cursor: selectedLineManager ? 'pointer' : 'not-allowed',
               position: "fixed",
               bottom: 30,
-              right: 20,
+              right: 460,
             }}
           >
-            View Performance
+            Evaluate Line Manager
           </button>
         </>
       )}

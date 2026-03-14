@@ -364,7 +364,12 @@ const EmployeePerformanceReport = () => {
         </button>
         <button
           className="performance-btn"
-          onClick={() => selectedEmployee && navigate('/view-performance-report', { state: { employee: selectedEmployee } })}
+          onClick={() => selectedEmployee && navigate('/view-performance-report', { 
+            state: { 
+              employee: selectedEmployee,
+              cycleId: selectedCycleId 
+            } 
+          })}
           disabled={!selectedEmployee}
         >
           View Performance

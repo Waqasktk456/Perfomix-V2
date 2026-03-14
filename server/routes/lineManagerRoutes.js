@@ -7,6 +7,9 @@ const lineManagerController = require('../controllers/lineManagerController');
 // All routes protected
 router.use(verifyToken);
 
+// Line manager views their own completed evaluation
+router.get('/my-evaluation', lineManagerController.getMyOwnEvaluation);
+
 // Check if line manager has completed all staff evaluations for a cycle
 router.get('/check-completion/:lineManagerId/:cycleId', lineManagerController.checkLineManagerCompletion);
 

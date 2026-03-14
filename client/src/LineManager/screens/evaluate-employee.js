@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
+import RatingInput from "../../components/RatingInput";
 import "./EvaluateEmployee.css";
 
 const EvaluateEmployee = () => {
@@ -61,7 +62,8 @@ const EvaluateEmployee = () => {
           parameter_id: p.parameter_id,
           parameter_name: p.parameter_name,
           weightage: p.weightage,
-          score: (p.score && p.score > 0) ? p.score : "",
+          rating: p.rating || "", // Rating from 1-5
+          score: p.score || "", // Auto-calculated score
           comments: p.feedback || "",
           weighted_score: p.score ? ((p.weightage / 100) * p.score).toFixed(2) : "0.00"
         }));
@@ -80,17 +82,16 @@ const EvaluateEmployee = () => {
     fetchEvaluationData();
   }, [location.state, navigate, state.evaluationId, state.employeeId]);
 
-  const handleScoreChange = (index, value) => {
+  const handleRatingChange = (index, ratingValue) => {
     if (!isEditable) return;
     
-    if (value === "" || (/^\d*$/.test(value) && Number(value) <= 100)) {
-      const updated = [...parameters];
-      updated[index].score = value;
-      updated[index].weighted_score = value 
-        ? ((updated[index].weightage / 100) * Number(value)).toFixed(2)
-        : "0.00";
-      setParameters(updated);
-    }
+    const updated = [...parameters];
+    updated[index].rating = ratingValue;
+    // Score is auto-calculated by database, but we can show preview
+    const calculatedScore = (ratingValue / 5) * 100;
+    updated[index].score = calculatedScore;
+    updated[index].weighted_score = ((updated[index].weightage / 100) * calculatedScore).toFixed(2);
+    setParameters(updated);
   };
 
   const handleCommentsChange = (index, value) => {
@@ -118,7 +119,7 @@ const EvaluateEmployee = () => {
           evaluation_id: state.evaluationId,
           parameters: parameters.map(p => ({
             parameter_id: p.parameter_id,
-            score: p.score === "" ? null : Number(p.score),
+            rating: p.rating === "" ? null : Number(p.rating),
             comments: p.comments || ""
           }))
         },
@@ -141,11 +142,11 @@ const EvaluateEmployee = () => {
   };
 
   const handleSubmitEvaluation = async () => {
-    // Validate all parameters have scores
-    const emptyParams = parameters.filter(p => !p.score || p.score === "");
+    // Validate all parameters have ratings
+    const emptyParams = parameters.filter(p => !p.rating || p.rating === "");
     
     if (emptyParams.length > 0) {
-      toast.error(`Please fill all ${parameters.length} parameters before submitting. ${emptyParams.length} parameter(s) are still empty.`);
+      toast.error(`Please rate all ${parameters.length} parameters before submitting. ${emptyParams.length} parameter(s) are still unrated.`);
       return;
     }
 
@@ -159,7 +160,7 @@ const EvaluateEmployee = () => {
           evaluation_id: state.evaluationId,
           parameters: parameters.map(p => ({
             parameter_id: p.parameter_id,
-            score: Number(p.score),
+            rating: Number(p.rating),
             comments: p.comments || ""
           }))
         },
@@ -242,7 +243,8 @@ const EvaluateEmployee = () => {
           <tr style={{ background: "#007bff", color: "white" }}>
             <th style={{ padding: "15px", textAlign: "left" }}>Parameter</th>
             <th style={{ padding: "15px", textAlign: "center" }}>Weightage</th>
-            <th style={{ padding: "15px", textAlign: "center" }}>Score (0-100)</th>
+            <th style={{ padding: "15px", textAlign: "center" }}>Rating (1-5)</th>
+            <th style={{ padding: "15px", textAlign: "center" }}>Score</th>
             <th style={{ padding: "15px", textAlign: "center" }}>Weighted Score</th>
             <th style={{ padding: "15px", textAlign: "left" }}>Feedback</th>
           </tr>
@@ -253,22 +255,15 @@ const EvaluateEmployee = () => {
               <td style={{ padding: "15px" }}>{param.parameter_name}</td>
               <td style={{ padding: "15px", textAlign: "center" }}>{param.weightage}%</td>
               <td style={{ padding: "15px", textAlign: "center" }}>
-                <input
-                  type="text"
-                  value={param.score}
-                  onChange={(e) => handleScoreChange(index, e.target.value)}
-                  placeholder="0-100"
+                <RatingInput
+                  value={param.rating}
+                  onChange={(rating) => handleRatingChange(index, rating)}
                   disabled={!isEditable}
-                  style={{ 
-                    width: "80px", 
-                    padding: "8px", 
-                    textAlign: "center", 
-                    borderRadius: "4px", 
-                    border: "1px solid #ccc",
-                    background: !isEditable ? "#f5f5f5" : "white",
-                    cursor: !isEditable ? "not-allowed" : "text"
-                  }}
+                  showLabel={false}
                 />
+              </td>
+              <td style={{ padding: "15px", textAlign: "center", fontWeight: "600", color: "#007bff" }}>
+                {param.score ? `${param.score}%` : '-'}
               </td>
               <td style={{ padding: "15px", textAlign: "center", fontWeight: "600" }}>
                 {param.weighted_score}

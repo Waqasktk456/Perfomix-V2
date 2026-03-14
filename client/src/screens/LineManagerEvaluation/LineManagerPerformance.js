@@ -61,14 +61,19 @@ const LineManagerPerformance = () => {
           console.log('Detail:', detail);
           const rawScore = detail.score || 0;
           const weight = detail.weightage || 0;
+          const rating = detail.rating || 0;
           // Calculate weighted score: (weight / 100) * raw_score
           const weightedScore = ((weight / 100) * rawScore).toFixed(2);
+          // For chart: Convert rating (1-5) to percentage (20-100)
+          const percentageScore = rating > 0 ? (rating * 20) : 0;
           
           return {
             parameter_name: detail.parameter_name,
             weightage: weight,
+            rating: rating,
             score: rawScore,
             weightedScore: parseFloat(weightedScore),
+            percentageScore: percentageScore,
             feedback: detail.comments || '-',
             recommendation: evalData.recommendation || evalData.areas_for_improvement || '-'
           };
@@ -192,7 +197,8 @@ const LineManagerPerformance = () => {
         <thead>
           <tr>
             <th>Parameter</th>
-            <th>Weight</th>
+            <th>Weight (%)</th>
+            <th>Rating (1-5)</th>
             <th>Score</th>
             <th>Feedback</th>
             <th>Recommendations</th>
@@ -200,12 +206,13 @@ const LineManagerPerformance = () => {
         </thead>
         <tbody>
           {performanceData.length === 0 ? (
-            <tr><td colSpan="5" style={{ textAlign: 'center' }}>No evaluation data found.</td></tr>
+            <tr><td colSpan="6" style={{ textAlign: 'center' }}>No evaluation data found.</td></tr>
           ) : (
             performanceData.map((item, index) => (
               <tr key={index}>
                 <td>{item.parameter_name}</td>
-                <td>{item.weightage || 0}</td>
+                <td>{item.weightage || 0}%</td>
+                <td>{item.rating}</td>
                 <td>{item.weightedScore}</td>
                 <td>{item.feedback}</td>
                 <td>{item.recommendation}</td>
@@ -235,19 +242,45 @@ const LineManagerPerformance = () => {
             <YAxis
               domain={[0, 100]}
               label={{
-                value: "Score",
+                value: "Performance (%)",
                 angle: -90,
                 position: "insideLeft",
                 offset: -10,
                 style: { fontSize: 14 }
               }}
             />
-            <Tooltip />
+            <Tooltip 
+              formatter={(value, name, props) => {
+                if (name === 'Performance (%)') {
+                  const { score, weightage } = props.payload;
+                  return [`${value}%`, `Score: ${score} / ${weightage} (${value}%)`];
+                }
+                return [value, name];
+              }}
+              labelFormatter={(label) => `Parameter: ${label}`}
+            />
             <Legend verticalAlign="top" height={36} />
-            <Bar dataKey="weightedScore" fill="#003f88" barSize={40} radius={[4, 4, 0, 0]}>
-              <LabelList dataKey="weightedScore" position="top" fill="#003f88" fontSize={12} fontWeight="bold" offset={10} />
+            <Bar dataKey="percentageScore" fill="#003f88" barSize={40} radius={[4, 4, 0, 0]} name="Performance (%)">
+              <LabelList 
+                dataKey="percentageScore" 
+                position="top" 
+                fill="#003f88" 
+                fontSize={12} 
+                fontWeight="bold" 
+                offset={10}
+                formatter={(value) => `${value}%`}
+              />
             </Bar>
-            {trendline && <Line type="monotone" dataKey="weightedScore" stroke="#ff7300" strokeWidth={2} dot={{ fill: "#ff7300", r: 4 }} />}
+            {trendline && (
+              <Line 
+                type="monotone" 
+                dataKey="percentageScore" 
+                stroke="#ff7300" 
+                strokeWidth={2} 
+                dot={{ fill: "#ff7300", r: 4 }}
+                name="Trend"
+              />
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
