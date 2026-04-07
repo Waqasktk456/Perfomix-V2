@@ -202,6 +202,7 @@ exports.getMyAssignedTeams = async (req, res) => {
       SELECT 
         cta.id AS assignment_id,
         cta.team_id,
+        cta.cycle_id,
         t.team_name,
         t.team_description,
         pm.id AS matrix_id,
@@ -295,13 +296,13 @@ exports.getMyAssignedTeams = async (req, res) => {
       JOIN departments d ON t.department_id = d.id
       JOIN evaluation_cycles ec ON cta.cycle_id = ec.id
       WHERE cta.line_manager_id = ?
-        AND ec.status = 'active'
       ORDER BY ec.created_at DESC
     `, [lineManagerId]);
 
     const teams = rows.map(row => ({
       assignment_id: row.assignment_id,
       team_id: row.team_id,
+      cycle_id: row.cycle_id,
       team_name: row.team_name || 'Unnamed Team',
       team_description: row.team_description || '',
       matrix_id: row.matrix_id,
@@ -459,7 +460,8 @@ exports.getEvaluationForm = async (req, res) => {
         pmx.weightage,
         COALESCE(ed.rating, NULL) AS rating,
         COALESCE(ed.score, NULL) AS score,
-        COALESCE(ed.comments, '') AS feedback
+        COALESCE(ed.comments, '') AS feedback,
+        COALESCE(ed.recommendation, '') AS recommendation
       FROM evaluations ev
       JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
       JOIN parameter_matrices pmx ON pmx.matrix_id = cta.matrix_id
@@ -534,13 +536,14 @@ exports.saveDraftEvaluation = async (req, res) => {
 
         // Insert rating - score will be auto-calculated by database trigger
         await connection.query(`
-          INSERT INTO evaluation_details (evaluation_id, parameter_id, rating, comments)
-          VALUES (?, ?, ?, ?)
+          INSERT INTO evaluation_details (evaluation_id, parameter_id, rating, comments, recommendation)
+          VALUES (?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             rating = VALUES(rating),
             comments = VALUES(comments),
+            recommendation = VALUES(recommendation),
             updated_at = CURRENT_TIMESTAMP
-        `, [evaluation_id, param.parameter_id, rating, param.comments || null]);
+        `, [evaluation_id, param.parameter_id, rating, param.comments || null, param.recommendation || null]);
 
         const [updateResult] = await connection.query(`
           UPDATE evaluation_status 
@@ -648,13 +651,14 @@ exports.submitEvaluation = async (req, res) => {
 
       // Insert rating - score will be auto-calculated by database trigger
       await connection.query(`
-        INSERT INTO evaluation_details (evaluation_id, parameter_id, rating, comments)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO evaluation_details (evaluation_id, parameter_id, rating, comments, recommendation)
+        VALUES (?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           rating = VALUES(rating),
           comments = VALUES(comments),
+          recommendation = VALUES(recommendation),
           updated_at = CURRENT_TIMESTAMP
-      `, [evaluation_id, param.parameter_id, rating, param.comments || null]);
+      `, [evaluation_id, param.parameter_id, rating, param.comments || null, param.recommendation || null]);
 
       const [updateResult] = await connection.query(`
         UPDATE evaluation_status 
@@ -704,6 +708,24 @@ exports.submitEvaluation = async (req, res) => {
     `, [finalScore, ratingId, ratingName, evaluation_id]);
 
     await connection.commit();
+
+    // Trigger AI analysis non-blocking (don't await — don't fail submission if AI is down)
+    const { analyzeEvaluation: runAI } = require('../services/aiAnalysisService');
+    const db2 = require('../config/db');
+    db2.query(
+      `SELECT ed.parameter_id, p.parameter_name, ed.rating, ed.comments, ed.recommendation
+       FROM evaluation_details ed JOIN parameters p ON ed.parameter_id = p.id
+       WHERE ed.evaluation_id = ?`,
+      [evaluation_id]
+    ).then(([details]) => runAI(details).then(ai => {
+      const isFallback = !ai.summary || ai.summary === 'AI analysis unavailable.' || ai.summary === 'Insufficient feedback for summary generation.';
+      if (!isFallback) {
+        db2.query(
+          `UPDATE evaluations SET ai_summary=?, ai_sentiment=?, ai_flags=? WHERE id=?`,
+          [ai.summary, ai.overall_sentiment, JSON.stringify(ai.flags), evaluation_id]
+        );
+      }
+    })).catch(e => console.error('[AI] Non-blocking analysis failed:', e));
 
     // Send evaluation submitted notification to the staff member
     try {

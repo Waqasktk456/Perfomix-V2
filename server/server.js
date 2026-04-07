@@ -8,6 +8,7 @@ const employeeRoutes = require('./routes/employeeRoutes');
 const employeesRouter = require('./routes/employees');
 const evaluationsRouter = require('./routes/evaluations');
 const teamrouter = require('./routes/teamRoutes');
+const aiAnalysisRouter = require('./routes/aiAnalysis');
 
 dotenv.config();
 const app = express();
@@ -25,6 +26,7 @@ app.use('/api/employees', employeeRoutes);
 // app.use('/api/employees', employeesRouter); // Duplicate route removed to correct conflict
 app.use('/api/teams', teamrouter);
 app.use('/api/evaluations', evaluationsRouter);
+app.use('/api/ai', aiAnalysisRouter);
 
 // Start the server
 app.listen(PORT, () => {

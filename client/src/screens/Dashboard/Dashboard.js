@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import "./Dashboard.css";
 import { PieChart, Pie, Cell, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, BarChart } from "recharts";
 import TotalEmployees from '../../assets/images/total-employee.png';
@@ -8,18 +8,15 @@ import PendingEvaluation from '../../assets/images/pending-evaluation.png';
 import profilepic from '../../assets/images/ali.png';
 import '../../styles/typography.css';
 import { TrophyImg } from "../../assets";
-import SearchBar from "../../components/Searchbar/Searchbar";
 import axios from "axios";
 
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState("All");
   const [totalEmployees, setTotalEmployees] = useState(0);
   const [newHires, setNewHires] = useState(0);
   const [totalDepartments, setTotalDepartments] = useState(0);
   const [pendingEvaluations, setPendingEvaluations] = useState(0);
   const [completedEvaluations, setCompletedEvaluations] = useState(0);
   const [topPerformers, setTopPerformers] = useState([]);
-  const [allEvaluations, setAllEvaluations] = useState([]);
   const [topDepartment, setTopDepartment] = useState(null);
   const [lowestDepartment, setLowestDepartment] = useState(null);
   const [topTeam, setTopTeam] = useState(null);
@@ -28,6 +25,8 @@ const Dashboard = () => {
   const [employeesNeedingAttention, setEmployeesNeedingAttention] = useState([]);
   const [topTeamStrengths, setTopTeamStrengths] = useState([]);
   const [currentCycleId, setCurrentCycleId] = useState(null);
+  const [allCycles, setAllCycles] = useState([]);
+  const [selectedCycleId, setSelectedCycleId] = useState(null);
 
   // Utility to filter unique employees by Employee_id
   const uniqueByEmployeeId = (arr) => {
@@ -42,9 +41,24 @@ const Dashboard = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    if (!token) return;
+
     const config = {
       headers: { Authorization: `Bearer ${token}` }
     };
+
+    // Fetch all cycles
+    axios.get("http://localhost:5000/api/cycles", config).then(res => {
+      const cyclesData = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      console.log('Fetched cycles:', cyclesData);
+      setAllCycles(cyclesData);
+      
+      // Automatically select the most recent cycle (first in the list)
+      if (cyclesData.length > 0) {
+        setSelectedCycleId(cyclesData[0].id);
+        setCurrentCycleId(cyclesData[0].id);
+      }
+    }).catch(err => console.log('Error fetching cycles:', err));
 
     // Fetch employees
     axios.get("http://localhost:5000/api/employees", config).then(res => {
@@ -65,8 +79,19 @@ const Dashboard = () => {
     axios.get("http://localhost:5000/api/departments", config).then(res => {
       setTotalDepartments((res.data.data || res.data).length);
     });
+  }, []);
+
+  // Fetch evaluation data when selectedCycleId changes
+  useEffect(() => {
+    if (!selectedCycleId) return;
+
+    const token = localStorage.getItem('token');
+    const config = {
+      headers: { Authorization: `Bearer ${token}` }
+    };
+
     // Fetch evaluation statuses for pie chart
-    axios.get("http://localhost:5000/api/evaluations/all-status", config).then(async res => {
+    axios.get(`http://localhost:5000/api/evaluations/all-status?cycle_id=${selectedCycleId}`, config).then(async res => {
       // Support both array response and { data: [] } response
       const all = Array.isArray(res.data) ? res.data : (res.data.data || []);
 
@@ -80,8 +105,6 @@ const Dashboard = () => {
       if (updatedAll.length > 0 && updatedAll[0].cycle_id) {
         setCurrentCycleId(updatedAll[0].cycle_id);
       }
-
-      setAllEvaluations(updatedAll);
 
       const completed = updatedAll.filter(e => e.evaluation_status === "Complete").length;
       const pending = updatedAll.filter(e => e.evaluation_status === "Pending").length;
@@ -262,7 +285,7 @@ const Dashboard = () => {
       const sortedAttention = attentionList.sort((a, b) => a.currentScore - b.currentScore).slice(0, 5);
       setEmployeesNeedingAttention(sortedAttention);
     });
-  }, []);
+  }, [selectedCycleId]);
 
   const totalEvaluations = completedEvaluations + pendingEvaluations;
   const completedPercent = totalEvaluations ? Math.round((completedEvaluations / totalEvaluations) * 100) : 0;
@@ -275,8 +298,6 @@ const Dashboard = () => {
 
   return (
     <div>
-      <h2 className="dashboard-title">Dashboard</h2>
-
       {/* Stats Cards */}
       <div className="stats-container">
         {[{
@@ -312,6 +333,31 @@ const Dashboard = () => {
           </div>
         ))}
       </div>
+
+      {/* Cycle Dropdown */}
+      <div className="cycle-selection-container">
+        <label htmlFor="cycle-select" className="cycle-label">
+          Evaluation Cycle:
+        </label>
+        <select
+          id="cycle-select"
+          className="cycle-dropdown"
+          value={selectedCycleId ? String(selectedCycleId) : ''}
+          onChange={(e) => setSelectedCycleId(Number(e.target.value))}
+        >
+          {allCycles.length === 0 ? (
+            <option value="">No cycles available</option>
+          ) : (
+            allCycles.map((cycle) => (
+              <option key={cycle.id} value={String(cycle.id)}>
+                {cycle.name}
+              </option>
+            ))
+          )}
+        </select>
+      </div>
+
+
 
       {/* Center Cards */}
       <div className="center-cards">

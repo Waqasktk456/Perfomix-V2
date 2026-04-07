@@ -772,3 +772,38 @@
     text-align: left;
   }
 }
+
+/* Cycle Selection */
+.cycle-selection-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.cycle-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #002F6C;
+  white-space: nowrap;
+}
+
+.cycle-dropdown {
+  flex: 1;
+  max-width: 400px;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #333;
+  background: white;
+  cursor: pointer;
+  outline: none;
+}
+
+.cycle-dropdown:hover { border-color: #003f88; }
+.cycle-dropdown:focus { border-color: #003f88; box-shadow: 0 0 0 3px rgba(0,63,136,0.1); }

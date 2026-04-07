@@ -28,7 +28,7 @@
 .employee-table th {
   background-color: #f8f9fa;
   padding: 12px 15px;
-  text-align: left;
+  text-align: center;
   font-weight: 600;
   color: #333;
   border-bottom: 2px solid #dee2e6;
@@ -37,6 +37,8 @@
 .employee-table td {
   padding: 15px;
   border-bottom: 1px solid #eee;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .employee-table tr:hover {

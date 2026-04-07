@@ -1,7 +1,9 @@
 .lm-eval-container {
   padding: 0px 32px 32px 32px;
-  max-width: 1300px;
-  margin: 0 auto;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .lm-eval-breadcrumb {
@@ -92,16 +94,19 @@
 
 .lm-eval-table-wrapper {
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .lm-eval-table {
   width: 100%;
+  min-width: 0;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .lm-eval-table th,
 .lm-eval-table td {
-  padding: 15px 20px;
+  padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid #e2e8f0;
   font-family: var(--font-primary);
@@ -202,8 +207,9 @@
 
 /* Table container with fixed height and scroll */
 .lm-table-container-scroll {
-  max-height: 450px;
+  max-height: 360px;
   overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   margin-bottom: 15px;

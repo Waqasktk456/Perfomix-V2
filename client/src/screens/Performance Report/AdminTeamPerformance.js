@@ -2,14 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import './LineManagerTeamsPerformance.css';
+import '../LineManagerEvaluation/LineManagerTeamsPerformance.css';
 
-const LineManagerTeamsPerformance = () => {
+const AdminTeamPerformance = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
-  const isAdminView = location.state?.isAdminView || false;
 
   const {
     lineManagerId,
@@ -47,7 +46,7 @@ const LineManagerTeamsPerformance = () => {
       fetchTeamsPerformance();
     } else {
       toast.error("Missing team or line manager information");
-      navigate('/linemanager-dashboard');
+      navigate('/dashboard');
     }
   }, [lineManagerId, cycleId, teamId]);
 
@@ -91,7 +90,8 @@ const LineManagerTeamsPerformance = () => {
         avg_performance_score: team.avg_performance_score,
         top_performer: team.top_performer,
         low_performer: team.low_performer,
-        last_activity: team.last_activity
+        last_activity: team.last_activity,
+        isAdminView: true
       }
     });
   };
@@ -109,7 +109,7 @@ const LineManagerTeamsPerformance = () => {
     <div className="lm-teams-performance-container">
       {/* Header Section */}
       <div className="lm-teams-performance-header">
-        <button className="back-button" onClick={() => navigate(isAdminView ? '/dashboard' : '/line-manager-evaluation')}>
+        <button className="back-button" onClick={() => navigate('/dashboard')}>
           ← Back
         </button>
         <div>
@@ -199,4 +199,4 @@ const LineManagerTeamsPerformance = () => {
   );
 };
 
-export default LineManagerTeamsPerformance;
+export default AdminTeamPerformance;

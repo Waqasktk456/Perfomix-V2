@@ -55,7 +55,8 @@ exports.getMyEvaluation = async (req, res) => {
         pmx.weightage,
         COALESCE(ed.rating, NULL) AS rating,
         COALESCE(ed.score, NULL) AS score,
-        COALESCE(ed.comments, '') AS feedback
+        COALESCE(ed.comments, '') AS feedback,
+        COALESCE(ed.recommendation, '') AS recommendation
       FROM evaluations ev
       JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
       JOIN parameter_matrices pmx ON pmx.matrix_id = cta.matrix_id

@@ -15,6 +15,7 @@ const Layout = () => {
   const [userName, setUserName] = useState("");
   const [userPicture, setUserPicture] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [performanceAnalyticsOpen, setPerformanceAnalyticsOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -132,10 +133,34 @@ const Layout = () => {
                 <img src={PerformanceEvaluationIcon} alt="Line Manager Evaluation" className="icon" /> Line Manager Evaluation
               </NavLink>
 
-
-              <NavLink to="/performance-report" className="menu-item">
-                <img src={PerformanceReportIcon} alt="Performance Report" className="icon" /> Performance Report
-              </NavLink>
+              {/* Performance Analytics Menu with Submenu */}
+              <div className="menu-item-wrapper">
+                <div 
+                  className={`menu-item ${performanceAnalyticsOpen ? 'active' : ''}`}
+                  onClick={() => setPerformanceAnalyticsOpen(!performanceAnalyticsOpen)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <img src={PerformanceReportIcon} alt="Performance Analytics" className="icon" /> 
+                  Performance Analytics
+                  <span style={{ marginLeft: 'auto', fontSize: '12px', marginRight: '5px' }}>
+                    {performanceAnalyticsOpen ? '▼' : '▶'}
+                  </span>
+                </div>
+                
+                {performanceAnalyticsOpen && (
+                  <div className="submenu">
+                    <NavLink to="/employee-performance" className="submenu-item">
+                      Employee Performance
+                    </NavLink>
+                    <NavLink to="/team-performance" className="submenu-item">
+                      Team Performance
+                    </NavLink>
+                    <NavLink to="/department-performance" className="submenu-item">
+                      Department Performance
+                    </NavLink>
+                  </div>
+                )}
+              </div>
               
               {/* Settings Menu with Submenu */}
               <div className="menu-item-wrapper">
@@ -146,7 +171,7 @@ const Layout = () => {
                 >
                   <img src={SettingIcon} alt="Settings" className="icon" /> 
                   Settings
-                  <span style={{ marginLeft: 'auto', fontSize: '12px' }}>
+                  <span style={{ marginLeft: 'auto', fontSize: '12px', marginRight: '5px' }}>
                     {settingsOpen ? '▼' : '▶'}
                   </span>
                 </div>

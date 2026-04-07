@@ -268,11 +268,6 @@ const ViewPerformanceReport = () => {
 
   return (
     <div className="staff-dashboard-container">
-      <div className="breadcrumb">
-        <span>Performance Report</span> &gt;
-        <span className="active"> View Performance </span>
-      </div>
-
       {/* Total Score Display */}
       <div className="total-score-container">
         <div className="score-card">

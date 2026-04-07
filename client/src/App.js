@@ -39,6 +39,11 @@ import TeamPerformance from "./LineManager/screens/TeamPerformance";
 import EmployeePerformanceReport from "./screens/Performance Report/performance-report";
 import ViewPerformanceReport from "./screens/Performance Report/view-performance-report";
 import ViewProfile from "./screens/Performance Report/view-profile";
+import TeamPerformanceAnalytics from "./screens/Performance Report/team-performance";
+import AdminTeamsPerformance from "./screens/Performance Report/AdminTeamsPerformance";
+import AdminViewTeamsPerformance from "./screens/Performance Report/AdminViewTeamsPerformance";
+import DepartmentPerformanceAnalytics from "./screens/Performance Report/department-performance";
+import DepartmentPerformanceReport from "./screens/Performance Report/DepartmentPerformanceReport";
 import PerformanceEvaluation from "./LineManager/screens/performance-evaluation";
 import ParameterName from "./LineManager/screens/parameter-name";
 import EvaluateEmployee from "./LineManager/screens/evaluate-employee";
@@ -117,15 +122,20 @@ function App() {
             <Route path="performance-ratings" element={<PerformanceRatings />} />
             <Route path="linemanager-dashboard" element={<LineManagerDashboard />} />
             <Route path="linemanager-performance" element={<LineManagerOwnPerformance />} />
-            <Route path="performance-report" element={<EmployeePerformanceReport />} />
+            <Route path="employee-performance" element={<EmployeePerformanceReport />} />
             <Route path="view-performance-report" element={<ViewPerformanceReport />} />
             <Route path="individual-report/:evaluation_id" element={<IndividualReport />} />
-            <Route path="team-performance" element={<TeamPerformance />} />
+            <Route path="team-performance" element={<TeamPerformanceAnalytics />} />
+            <Route path="admin-teams-performance" element={<AdminTeamsPerformance />} />
+            <Route path="adminview-teams-performance" element={<AdminViewTeamsPerformance />} />
+            <Route path="department-performance" element={<DepartmentPerformanceAnalytics />} />
+            <Route path="department-performance-report" element={<DepartmentPerformanceReport />} />
             <Route path="performance-evaluation" element={<PerformanceEvaluation />} />
             <Route path="linemanager-evaluation" element={<LineManagerEvaluationScreen />} />
             <Route path="line-manager-evaluation" element={<LineManagerEvaluationScreen />} />
             <Route path="line-manager-performance" element={<LineManagerPerformance />} />
             <Route path="line-manager-teams-performance" element={<LineManagerTeamsPerformance />} />
+            <Route path="line-manager-team-performance" element={<TeamPerformance />} />
             <Route path="evaluate-linemanager/:id" element={<EvaluateLineManager />} />
             <Route path="parameter-name" element={<ParameterName />} />
             <Route path="evaluate-employee" element={<EvaluateEmployee />} />

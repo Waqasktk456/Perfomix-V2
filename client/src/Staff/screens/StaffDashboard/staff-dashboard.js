@@ -6,6 +6,7 @@ import { Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, Legend, ResponsiveCont
 import axios from "axios";
 import { toast } from 'react-toastify';
 import { generateProfessionalPDF } from '../../../utils/pdfGenerator';
+import { analyzeEvaluation, getAIResults } from '../../../services/aiAnalysisService';
 
 const StaffDashboard = () => {
   const [trendline, setTrendline] = useState(true);
@@ -18,6 +19,8 @@ const StaffDashboard = () => {
   const [cycles, setCycles] = useState([]);
   const [selectedCycleId, setSelectedCycleId] = useState(null);
   const [trendData, setTrendData] = useState([]);
+  const [aiResult, setAiResult] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Fetch all cycles
   useEffect(() => {
@@ -116,7 +119,7 @@ const StaffDashboard = () => {
               weightedScore: parseFloat(weightedScore),
               percentageScore: percentageScore, // 0-100 based on rating
               feedback: ev.feedback || ev.comments || "",
-              recommendation: ""
+              recommendation: ev.recommendation || ""
             };
           });
 
@@ -137,9 +140,29 @@ const StaffDashboard = () => {
 
           if (res.data.evaluation_id) {
             setEvaluationId(res.data.evaluation_id);
+            const evalId = res.data.evaluation_id;
+            setAiLoading(true);
+            setAiResult(null);
+            getAIResults(evalId)
+              .then(stored => {
+                const isFallback = !stored || !stored.summary || stored.summary === 'AI analysis unavailable.';
+                if (!isFallback) {
+                  setAiResult(stored);
+                  setAiLoading(false);
+                } else {
+                  return analyzeEvaluation(evalId).then(fresh => {
+                    setAiResult(fresh);
+                    setAiLoading(false);
+                  });
+                }
+              })
+              .catch(err => {
+                console.error('[AI] Analysis error:', err);
+                setAiLoading(false);
+              });
+          } else {
+            console.log('[AI] No evaluation_id in response');
           }
-
-          // Use rating from API response instead of calculating on frontend
           if (res.data.rating && res.data.rating.name) {
             setPerformance({
               level: res.data.rating.name,
@@ -153,6 +176,8 @@ const StaffDashboard = () => {
         } else {
           setParametersData([]);
           setChartData([]);
+          setAiResult(null);
+          setAiLoading(false);
           setPerformance({ level: 'No Evaluation', color: '#9E9E9E', bg: '#F5F5F5' });
           toast.info('No completed evaluation found for this cycle');
         }
@@ -184,7 +209,7 @@ const StaffDashboard = () => {
 
   const handleExportPDF = async () => {
     if (!evaluationId) {
-      toast.error("Evaluation record not found");
+      toast.error("No completed evaluation found for this cycle. Complete the evaluation first.");
       return;
     }
     try {
@@ -193,13 +218,16 @@ const StaffDashboard = () => {
       const res = await axios.get(`http://localhost:5000/api/reports/individual/${evaluationId}`, config);
 
       if (res.data.success) {
-        toast.info("Generating professional performance report...");
+        toast.info("Generating performance report...");
         await generateProfessionalPDF(res.data, 'individual-assessment');
         toast.success("Report downloaded successfully");
+      } else {
+        toast.error(res.data.message || "Failed to load report data");
       }
     } catch (error) {
       console.error('Individual PDF Export Error:', error);
-      toast.error("Failed to generate professional report");
+      const msg = error.response?.data?.message || error.message || "Failed to generate report";
+      toast.error(msg);
     }
   };
 
@@ -316,17 +344,84 @@ const StaffDashboard = () => {
                 <td>{param.weightage}%</td>
                 <td>{param.rating}</td>
                 <td>{((Number(param.weightage) / 100) * Number(param.score)).toFixed(2)}</td>
-                <td>{param.feedback}</td>
-                <td>{param.recommendation}</td>
+                <td>{param.feedback || "NA"}</td>
+                <td>{param.recommendation || "NA"}</td>
               </tr>
             ))
           )}
         </tbody>
       </table>
 
+      {/* AI Feedback Analysis Section */}
+      {(aiLoading || aiResult) && (
+        <div className="ai-analysis-section">
+          <h3 className="ai-section-title">
+            <span className="ai-icon">🤖</span> AI Feedback Analysis
+          </h3>
+
+          {aiLoading && (
+            <div className="ai-loading-state">
+              <div className="ai-spinner" />
+              <span>Analyzing your feedback with AI...</span>
+            </div>
+          )}
+
+          {!aiLoading && aiResult && (
+            <>
+              {/* Summary + Sentiment Row */}
+              <div className="ai-top-row">
+                <div className="ai-summary-box">
+                  <span className="ai-box-label">Performance Summary</span>
+                  <p className="ai-summary-text">{aiResult.summary}</p>
+                </div>
+                <div className="ai-sentiment-box">
+                  <span className="ai-box-label">Overall Sentiment</span>
+                  <span className={`ai-sentiment-pill ai-sentiment-${(aiResult.overall_sentiment || 'neutral').toLowerCase()}`}>
+                    {aiResult.overall_sentiment === 'POSITIVE' && '😊 '}
+                    {aiResult.overall_sentiment === 'NEGATIVE' && '😟 '}
+                    {aiResult.overall_sentiment === 'NEUTRAL' && '😐 '}
+                    {aiResult.overall_sentiment === 'MIXED' && '🔀 '}
+                    {aiResult.overall_sentiment}
+                  </span>
+                </div>
+              </div>
+
+              {/* Flags */}
+              {aiResult.flags && aiResult.flags.length > 0 && (
+                <div className="ai-flags-section">
+                  <span className="ai-box-label">Quality Flags</span>
+                  <div className="ai-flags-list">
+                    {aiResult.flags.map((flag, i) => (
+                      <div key={i} className={`ai-flag-item ai-flag-${flag.type.toLowerCase()}`}>
+                        <span className="ai-flag-icon">
+                          {flag.type === 'INCONSISTENCY' && '⚠️'}
+                          {flag.type === 'WEAK_FEEDBACK' && '📝'}
+                          {flag.type === 'DUPLICATE_FEEDBACK' && '🔁'}
+                          {flag.type === 'MISSING_FEEDBACK' && '❌'}
+                        </span>
+                        <div className="ai-flag-content">
+                          <span className="ai-flag-type">{flag.type.replace(/_/g, ' ')}</span>
+                          {flag.parameter_name && <span className="ai-flag-param"> · {flag.parameter_name}</span>}
+                          <p className="ai-flag-msg">{flag.message}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {aiResult.flags && aiResult.flags.length === 0 && (
+                <div className="ai-no-flags">
+                  ✅ No quality issues detected in your evaluation feedback.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       <div className="staff-chart-section">
-        <Checkbox checked={trendline} onChange={() => setTrendline(!trendline)} color="primary" />
-        <span>Add Trendline</span>
+        <Checkbox checked={trendline} onChange={() => setTrendline(!trendline)} color="primary" />        <span>Add Trendline</span>
         <ResponsiveContainer width="100%" height={400}>
           <ComposedChart
             data={chartData}

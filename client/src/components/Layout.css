@@ -16,12 +16,15 @@
 
 .sidebar {
   width: 240px;
+  min-width: 240px;
+  flex-shrink: 0;
   background: #ffffff;
   padding: 10px;
   height: 100vh;
-  /* box-shadow: 2px 0px 5px rgba(0, 0, 0, 0.1); */
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 
@@ -37,7 +40,7 @@
 
 .menu-item {
   display: flex;
-  /* align-items: center; */
+  align-items: center;
   padding: 12px 15px;
   font-size: var(--font-size-sm);
   font-family: var(--font-primary);
@@ -51,8 +54,12 @@
 
 .menu-item .icon {
   margin-right: 12px;
-
-
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .menu-item:hover,
@@ -150,6 +157,7 @@
   padding: 20px;
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 

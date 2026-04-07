@@ -330,18 +330,15 @@ exports.getIndividualReport = async (req, res) => {
         const evaluation = evalRows[0];
 
         // Access Control
-        if (role === 'user') { // Staff
-            if (evaluation.employee_user_id !== userId) {
+        // Note: For staff/line-manager, JWT id = employees.id (not users.id)
+        if (role === 'user' || role?.toLowerCase() === 'staff') {
+            if (evaluation.employee_id !== userId) {
                 return res.status(403).json({ success: false, message: 'Unauthorized access to this report' });
             }
         } else if (role === 'admin' || role === 'super_admin') {
             // Admin has full access within org
-        } else {
-            // Line manager check if they are the evaluator
-            if (evaluation.evaluator_id !== userId && evaluation.employee_user_id !== userId) {
-                return res.status(403).json({ success: false, message: 'Unauthorized access to this report' });
-            }
         }
+        // Line managers can view any report in their org — no restriction needed
 
         // Fetch Parameter Details
         const [details] = await db.query(`
@@ -377,42 +374,139 @@ exports.getIndividualReport = async (req, res) => {
 
         const previousPerformance = prevEvalRows.length > 0 ? prevEvalRows[0] : null;
 
+        // Fetch AI analysis results
+        const [aiRows] = await db.query(
+            `SELECT ai_summary, ai_sentiment, ai_flags FROM evaluations WHERE id = ?`,
+            [evaluation_id]
+        );
+        const aiData = aiRows[0] || {};
+        let aiFlags = [];
+        try { aiFlags = aiData.ai_flags ? (typeof aiData.ai_flags === 'string' ? JSON.parse(aiData.ai_flags) : aiData.ai_flags) : []; } catch(e) {}
+
+        // Fetch benchmarking data
+        const [teamBench] = await db.query(`
+            SELECT AVG(ev.overall_score) as avg_score
+            FROM evaluations ev
+            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            WHERE cta.team_id = (SELECT team_id FROM cycle_team_assignments WHERE id = ?)
+              AND ev.status = 'completed' AND cta.cycle_id = (SELECT cycle_id FROM cycle_team_assignments WHERE id = ?)
+        `, [evaluation.cycle_team_assignment_id, evaluation.cycle_team_assignment_id]);
+
+        const [deptBench] = await db.query(`
+            SELECT AVG(ev.overall_score) as avg_score
+            FROM evaluations ev
+            JOIN employees e ON ev.employee_id = e.id
+            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            WHERE e.department_id = (SELECT department_id FROM employees WHERE id = ?)
+              AND ev.status = 'completed' AND cta.cycle_id = (SELECT cycle_id FROM cycle_team_assignments WHERE id = ?)
+        `, [evaluation.employee_id, evaluation.cycle_team_assignment_id]);
+
+        const [orgBench] = await db.query(`
+            SELECT AVG(ev.overall_score) as avg_score
+            FROM evaluations ev
+            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            WHERE ev.organization_id = ? AND ev.status = 'completed'
+              AND cta.cycle_id = (SELECT cycle_id FROM cycle_team_assignments WHERE id = ?)
+        `, [orgId, evaluation.cycle_team_assignment_id]);
+
+        const [percentileRow] = await db.query(`
+            SELECT COUNT(*) as employees_below
+            FROM evaluations ev
+            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            WHERE ev.organization_id = ? AND ev.status = 'completed'
+              AND cta.cycle_id = (SELECT cycle_id FROM cycle_team_assignments WHERE id = ?)
+              AND ev.overall_score < ?
+        `, [orgId, evaluation.cycle_team_assignment_id, evaluation.overall_score]);
+
+        const [totalRow] = await db.query(`
+            SELECT COUNT(*) as total
+            FROM evaluations ev
+            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            WHERE ev.organization_id = ? AND ev.status = 'completed'
+              AND cta.cycle_id = (SELECT cycle_id FROM cycle_team_assignments WHERE id = ?)
+        `, [orgId, evaluation.cycle_team_assignment_id]);
+
+        const percentile = totalRow[0].total > 0
+            ? Math.round((percentileRow[0].employees_below / totalRow[0].total) * 100)
+            : null;
+
+        // Also fetch rating and recommendation fields from evaluation_details
+        const [detailsFull] = await db.query(`
+            SELECT 
+                p.id as parameter_id,
+                p.parameter_name,
+                p.description,
+                pm.weightage,
+                ed.rating,
+                ed.score,
+                (ed.score * pm.weightage / 100) as weighted_score,
+                ed.comments as feedback,
+                ed.recommendation
+            FROM evaluation_details ed
+            JOIN parameters p ON ed.parameter_id = p.id
+            JOIN evaluations ev ON ed.evaluation_id = ev.id
+            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            JOIN parameter_matrices pm ON p.id = pm.parameter_id AND cta.matrix_id = pm.matrix_id
+            WHERE ed.evaluation_id = ?
+        `, [evaluation_id]);
+
+        // Generate final verdict
+        const score = parseFloat(evaluation.overall_score || 0);
+        let verdict, verdictColor;
+        if (score >= 90) { verdict = 'Ready for Promotion'; verdictColor = '#10B981'; }
+        else if (score >= 75) { verdict = 'Exceeds Expectations'; verdictColor = '#3B82F6'; }
+        else if (score >= 60) { verdict = 'Meets Expectations'; verdictColor = '#F59E0B'; }
+        else if (score >= 45) { verdict = 'Needs Improvement'; verdictColor = '#F97316'; }
+        else { verdict = 'Performance Support Required'; verdictColor = '#EF4444'; }
+
         res.json({
             success: true,
             employee_details: {
-                id: evaluation.employee_id, // Added ID
+                id: evaluation.employee_id,
                 name: evaluation.employee_name,
                 role: evaluation.Designation,
                 department: evaluation.Department_name,
                 team: evaluation.team_name,
-                image: evaluation.Profile_image // Assuming this might be available or added if needed, but not in query yet. 
-                // Let's stick to what we have in query:
-                // We didn't select Profile_image in the main query. Let's add it if possible, strictly following what was there.
-                // The main query selected `ev.*` and `e.*` implicitly via joins? No, it selected specific fields.
-                // It selected `e.user_id`. Let's assume we maintain existing fields + id.
             },
             cycle_details: {
                 name: evaluation.cycle_name,
                 start: evaluation.cycle_start,
                 end: evaluation.cycle_end,
                 organization: evaluation.organization_name,
-                status: 'Closed' // This should ideally come from ec.status if available
+                status: 'Closed'
             },
             performance: {
                 overall_score: evaluation.overall_score,
-                weighted_score: Number(evaluation.overall_score), // Assuming overall IS weighted in this context
+                weighted_score: Number(evaluation.overall_score),
+                rating_name: evaluation.rating_name,
                 status: evaluation.status,
-                submitted_at: evaluation.submitted_at || evaluation.updated_at, // Fallback
+                submitted_at: evaluation.submitted_at || evaluation.updated_at,
                 manager_remarks: evaluation.comments,
-                evaluator_name: evaluation.manager_name, // Added evaluator name
-                parameters: details,
+                evaluator_name: evaluation.manager_name,
+                parameters: detailsFull,
                 previous_score: previousPerformance ? previousPerformance.overall_score : null,
                 previous_cycle: previousPerformance ? previousPerformance.cycle_name : null
+            },
+            ai: {
+                summary: aiData.ai_summary || null,
+                sentiment: aiData.ai_sentiment || null,
+                flags: aiFlags
+            },
+            benchmarking: {
+                team_average: teamBench[0]?.avg_score ? parseFloat(Number(teamBench[0].avg_score).toFixed(1)) : null,
+                dept_average: deptBench[0]?.avg_score ? parseFloat(Number(deptBench[0].avg_score).toFixed(1)) : null,
+                org_average: orgBench[0]?.avg_score ? parseFloat(Number(orgBench[0].avg_score).toFixed(1)) : null,
+                percentile_rank: percentile
+            },
+            verdict: {
+                label: verdict,
+                color: verdictColor,
+                score: score
             }
         });
 
     } catch (error) {
-        console.error('Individual Report Error:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
+        console.error('Individual Report Error:', error.message, error.stack);
+        res.status(500).json({ success: false, message: 'Internal server error', detail: error.message });
     }
 };

@@ -299,8 +299,8 @@ const LineManagerEvaluationScreen = () => {
                   <th>Email</th>
                   <th>Department</th>
                   <th>Designation</th>
-                  <th>Staff Evaluation Status</th>
-                  <th>Admin Evaluation Status</th>
+                  <th>Staff Eval.<br/>Status</th>
+                  <th>Admin Eval.<br/>Status</th>
                 </tr>
               </thead>
 
@@ -365,7 +365,7 @@ const LineManagerEvaluationScreen = () => {
               opacity: (selectedLineManager && selectedCycleId) ? 1 : 0.5,
               cursor: (selectedLineManager && selectedCycleId) ? 'pointer' : 'not-allowed',
               position: "fixed",
-              bottom: 30,
+              bottom: 16,
               right: 30,
             }}
           >
@@ -380,7 +380,7 @@ const LineManagerEvaluationScreen = () => {
               opacity: (selectedLineManager && selectedCycleId) ? 1 : 0.5,
               cursor: (selectedLineManager && selectedCycleId) ? 'pointer' : 'not-allowed',
               position: "fixed",
-              bottom: 30,
+              bottom: 16,
               right: 230,
             }}
           >
@@ -395,7 +395,7 @@ const LineManagerEvaluationScreen = () => {
               opacity: selectedLineManager ? 1 : 0.5,
               cursor: selectedLineManager ? 'pointer' : 'not-allowed',
               position: "fixed",
-              bottom: 30,
+              bottom: 16,
               right: 460,
             }}
           >

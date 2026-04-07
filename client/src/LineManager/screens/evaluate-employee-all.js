@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import "./EvaluateEmployeeAll.css";
+import "../screens/EvaluateEmployee.css";
 
 const EvaluateEmployeeAll = () => {
   const location = useLocation();
@@ -104,35 +105,56 @@ const EvaluateEmployeeAll = () => {
   }
 
   return (
-    <div className="evaluation-container">
-      {/* Breadcrumb */}
-      <div className="breadcrumb">
-        <span onClick={() => navigate("/linemanager-dashboard")} style={{ cursor: "pointer" }}>
-          Dashboard
-        </span> ›
-        <span className="active"> Evaluate Team Members</span>
-      </div>
+    <div className="evaluation-container" style={{ margin: "-20px", padding: "0" }}>
+      {/* Header */}
+      <div style={{ padding: "24px 28px 0", background: "#f8f9fa" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "20px" }}>
+          <button onClick={() => navigate(-1)} style={{ width: "36px", height: "36px", borderRadius: "50%", border: "1px solid #d1d5db", background: "white", cursor: "pointer", fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            ‹
+          </button>
+          <div>
+            <h1 style={{ margin: 0, fontSize: "28px", fontWeight: "700", color: "#111827" }}>Performance Evaluation</h1>
+            <p style={{ margin: "4px 0 0", fontSize: "15px", color: "#6b7280" }}>Review and rate employee performance parameters</p>
+          </div>
+        </div>
 
-      {/* Team Header */}
-      <div style={{ 
-        background: "#f8f9fa", 
-        borderRadius: "8px", 
-        padding: "15px 20px",
-        marginBottom: "20px" 
-      }}>
-        <h2 style={{ margin: "0 0 8px 0" }}>{teamInfo.teamName}</h2>
-        <p style={{ margin: "0", fontSize: "14px", color: "#666" }}>
-          <strong>Matrix:</strong> {teamInfo.matrixName} | 
-          <strong> Department:</strong> {teamInfo.department} | 
-          <strong> Members:</strong> {employees.length}
-        </p>
+        {/* Team card */}
+        <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e5e7eb", borderTop: "6px solid #003366", padding: "22px 28px", display: "flex", alignItems: "center", gap: "24px", marginBottom: "24px", height: "207px" }}>
+          <div style={{ width: "96px", height: "96px", borderRadius: "50%", background: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", fontWeight: "700", color: "#2563eb", flexShrink: 0, marginTop: "18px" }}>
+            {teamInfo.teamName ? teamInfo.teamName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "T"}
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <h2 style={{ margin: "0 0 10px", fontFamily: "'Outfit', sans-serif", fontSize: "24px", lineHeight: "32px", fontWeight: "700", letterSpacing: "-0.6px", color: "#2B0F17" }}>
+              {teamInfo.teamName}
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "0.8fr 1fr", gap: "6px 4px" }}>
+              <span><span style={{ marginRight: "6px" }}>🏢</span><strong className="emp-info-label">Department: </strong><span className="emp-info-value">{teamInfo.department}</span></span>
+              <span><span style={{ marginRight: "6px" }}>📋</span><strong className="emp-info-label">Matrix: </strong><span className="emp-matrix-badge">{teamInfo.matrixName}</span></span>
+              <span><span style={{ marginRight: "6px" }}>👥</span><strong className="emp-info-label">Members: </strong><span className="emp-info-value">{employees.length}</span></span>
+            </div>
+          </div>
+
+          <div style={{ textAlign: "right", flexShrink: 0, minWidth: "200px", background: "#F1F5F9", borderRadius: "10px", padding: "14px 18px", alignSelf: "center", marginLeft: "-60px", marginTop: "18px" }}>
+            <p className="emp-info-label" style={{ margin: "0 0 4px" }}>Team Progress</p>
+            <p className="emp-info-value" style={{ margin: "0 0 8px", fontSize: "28px", fontWeight: "700", lineHeight: 1 }}>
+              {employees.length > 0 ? Math.round(employees.reduce((s, e) => s + (e.progress || 0), 0) / employees.length) : 0}
+              <span style={{ fontSize: "14px", fontWeight: "400" }}>%</span>
+            </p>
+            <div style={{ width: "100%", height: "5px", background: "#e5e7eb", borderRadius: "3px" }}>
+              <div style={{ width: `${employees.length > 0 ? Math.round(employees.reduce((s, e) => s + (e.progress || 0), 0) / employees.length) : 0}%`, height: "100%", background: "#003366", borderRadius: "3px" }} />
+            </div>
+            <p className="emp-info-value" style={{ margin: "5px 0 0", fontSize: "12px" }}>avg completion</p>
+          </div>
+        </div>
       </div>
 
       {/* Employee Table */}
-      <table className="employee-table">
+      <div style={{ padding: "0 20px 20px" }}>
+      <table className="employee-table eval-table" style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
-            <th>Employee ID</th>
+            <th>SR No</th>
             <th>Employee Name</th>
             <th>Progress</th>
             <th>Status</th>
@@ -147,79 +169,46 @@ const EvaluateEmployeeAll = () => {
               </td>
             </tr>
           ) : (
-            employees.map((emp) => (
-              <tr key={emp.employee_id}>
-                <td>{emp.employee_id}</td>
-                <td>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            employees.map((emp, index) => (
+              <tr key={emp.employee_id} style={{ borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "15px", textAlign: "center" }}>{index + 1}</td>
+                <td className="eval-param-name">
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingLeft: "8px" }}>
                     {emp.profile_image ? (
-                      <img 
-                        src={emp.profile_image} 
+                      <img
+                        src={emp.profile_image.startsWith('/uploads') ? `http://localhost:5000${emp.profile_image}` : emp.profile_image}
                         alt={emp.name}
-                        style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover" }}
+                        style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
                       />
                     ) : (
-                      <div style={{ 
-                        width: "40px", 
-                        height: "40px", 
-                        borderRadius: "50%", 
-                        background: "#007bff", 
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "center", 
-                        color: "white", 
-                        fontWeight: "bold" 
-                      }}>
+                      <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", color: "#2563eb", fontWeight: "700", flexShrink: 0 }}>
                         {emp.name.charAt(0)}
                       </div>
                     )}
                     <div>
-                      <div style={{ fontWeight: "600" }}>{emp.name}</div>
-                      <div style={{ fontSize: "12px", color: "#666" }}>{emp.designation}</div>
+                      <div>{emp.name}</div>
+                      <div style={{ fontSize: "12px", color: "#9ca3af", fontWeight: "400" }}>{emp.designation}</div>
                     </div>
                   </div>
                 </td>
-                <td>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{ width: "100px", background: "#e9ecef", borderRadius: "10px", overflow: "hidden" }}>
-                      <div 
-                        style={{ 
-                          width: `${emp.progress}%`, 
-                          background: "#007bff", 
-                          height: "8px",
-                          transition: "width 0.3s ease"
-                        }}
-                      />
+                <td style={{ padding: "15px", textAlign: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "center" }}>
+                    <div style={{ width: "80px", background: "#e5e7eb", borderRadius: "4px", overflow: "hidden", height: "6px" }}>
+                      <div style={{ width: `${emp.progress}%`, background: "#003366", height: "100%", transition: "width 0.3s ease" }} />
                     </div>
-                    <span style={{ fontSize: "14px" }}>{emp.progress}%</span>
+                    <span className="eval-weighted-score" style={{ fontSize: "13px" }}>{emp.progress}%</span>
                   </div>
                 </td>
-                <td>
-                  <span 
-                    style={{ 
-                      padding: "6px 12px", 
-                      borderRadius: "20px", 
-                      background: getStatusColor(emp.status),
-                      color: "white",
-                      fontSize: "12px",
-                      fontWeight: "600"
-                    }}
-                  >
+                <td style={{ padding: "15px", textAlign: "center" }}>
+                  <span className="eval-weightage-badge" style={{ width: "auto", padding: "0 12px", background: emp.status === 'completed' ? "#dcfce7" : "#fef9c3", color: emp.status === 'completed' ? "#16a34a" : "#b45309" }}>
                     {getStatusText(emp.status)}
                   </span>
                 </td>
-                <td>
+                <td style={{ padding: "15px", textAlign: "center" }}>
                   <button
                     onClick={() => handleEvaluateClick(emp)}
-                    className="submit-button"
-                    style={{
-                      padding: "8px 16px",
-                      background: emp.status === 'completed' ? "#28a745" : "#007bff",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "6px",
-                      cursor: "pointer"
-                    }}
+                    className={emp.status === 'completed' ? "eval-back-btn" : "eval-submit-btn"}
+                    style={{ width: "auto", padding: "0 12px", fontSize: "13px", height: "36px" }}
                   >
                     {emp.status === 'completed' ? 'View' : 'Evaluate'}
                   </button>
@@ -231,13 +220,9 @@ const EvaluateEmployeeAll = () => {
       </table>
 
       {/* Bottom Buttons */}
-      <div className="button-container" style={{ marginTop: "30px" }}>
-        <button 
-          className="cancel-button"
-          onClick={() => navigate("/linemanager-dashboard")}
-        >
-          Back to Dashboard
-        </button>
+      <div style={{ marginTop: "30px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <button className="eval-back-btn" onClick={() => navigate(-1)}>Back to List</button>
+      </div>
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@700&display=swap');
+
 .evaluate-container {
     padding: 20px;
     font-family: "Montserrat", sans-serif;
@@ -104,3 +106,217 @@
     cursor: pointer;
   }
   
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap');
+
+.emp-info-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: #583141;
+}
+
+.emp-info-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: #0F1729;
+}
+
+.emp-matrix-badge {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #0F1729;
+  background: #F1F5F9;
+  border-radius: 6px;
+  padding: 2px 10px;
+}
+
+.eval-table th {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+  font-weight: 600 !important;
+  letter-spacing: normal !important;
+  color: #45556b !important;
+  background: #F8FAFC !important;
+  padding: 8px 15px;
+}
+
+.eval-param-name {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 16px !important;
+  line-height: 24px !important;
+  font-weight: 500 !important;
+  letter-spacing: normal !important;
+  color: #3D1D29 !important;
+  padding: 15px;
+  max-width: 140px;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.eval-weightage-badge {
+  display: inline-block;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: normal;
+  color: #6C4555;
+  background: #F1F5F9;
+  width: 46.48px;
+  height: 22px;
+  border-radius: 9999px;
+  text-align: center;
+  line-height: 22px;
+}
+
+.eval-score-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: #6C4555;
+}
+
+.eval-weighted-score {
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: #2463EB;
+}
+
+.eval-feedback-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.eval-feedback-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-40%);
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  color: #9ca3af;
+}
+
+.eval-feedback-input {
+  width: 160px;
+  height: 38px;
+  padding: 8px 16px 8px 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #F8FAFC;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #583141;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.eval-feedback-input::placeholder {
+  color: #9ca3af;
+}
+
+.eval-feedback-input:focus {
+  border-color: #2463EB;
+}
+
+.eval-feedback-input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.eval-total-row {
+  background: #F8FAFC;
+}
+
+.eval-total-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: normal;
+  color: #583141;
+  background: #F8FAFC;
+  height: 69px;
+  padding: 0 15px;
+}
+
+.eval-total-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
+  letter-spacing: normal;
+  color: #2B0F17;
+}
+
+.eval-back-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: #583141;
+  background: #FFFFFF;
+  width: 240.688px;
+  height: 48px;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+}
+
+.eval-draft-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: #FFFFFF;
+  background: #F59F0A;
+  width: 193.391px;
+  height: 48px;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+}
+
+.eval-draft-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.eval-submit-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: #FFFFFF;
+  background: #2463EB;
+  width: 220px;
+  height: 48px;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.eval-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
