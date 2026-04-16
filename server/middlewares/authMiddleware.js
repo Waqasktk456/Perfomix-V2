@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
+const db = require("../config/db");
 
-exports.verifyToken = (req, res, next) => {
+exports.verifyToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ message: "No token provided" });
@@ -15,10 +16,25 @@ exports.verifyToken = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log("Decoded JWT:", decoded);
 
+    let organizationId = decoded.organizationId;
+
+    // If token has no organizationId, fetch it fresh from DB
+    if (!organizationId && decoded.id) {
+      try {
+        const [[user]] = await db.query(
+          'SELECT organization_id FROM users WHERE id = ? AND deleted_at IS NULL',
+          [decoded.id]
+        );
+        organizationId = user?.organization_id || null;
+      } catch (dbErr) {
+        console.error("DB lookup for organizationId failed:", dbErr.message);
+      }
+    }
+
     req.user = {
       id: decoded.id,
       role: decoded.role,
-      organizationId: decoded.organizationId,  // Keep your naming
+      organizationId,
     };
 
     next();

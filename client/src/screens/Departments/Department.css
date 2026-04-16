@@ -2,24 +2,26 @@
 .add-department-btn {
   background-color: var(--primary-color);
   color: white;
-  padding: 10px 16px;
+  padding: 12px 24px;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-family: var(--font-primary);
   font-weight: var(--font-weight-bold);
+  min-width: 150px;
 }
 .add-team-btn {
   background-color: var(--primary-color);
   color: white;
-  padding: 10px 16px;
+  padding: 12px 24px;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-family: var(--font-primary);
   font-weight: var(--font-weight-bold);
+  min-width: 150px;
 }
 
 
@@ -129,21 +131,16 @@ a:hover {
 
 /* Department Details Container */
 .department-details-container {
-  padding: 20px;
+  padding: 12px 20px 20px 20px;
   max-width: 1500px;
   margin: 0 auto;
-  min-height: 100vh;
 }
 
 /* Header Styles */
 .department-details-header {
   display: flex;
   align-items: center;
-  margin-bottom: 40px;
-  padding: 20px;
-  /* background: white; */
-  border-radius: 15px;
-
+  margin-bottom: 16px;
   position: relative;
 }
 
@@ -219,7 +216,7 @@ a:hover {
 .detail-group {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
+  gap: 16px;
 }
 
 .detail-item {
@@ -256,17 +253,18 @@ a:hover {
 }
 
 .detail-label {
-  color: #7f8c8d;
-  font-size: 0.9rem;
+  color: #a0aec0;
+  font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
 .detail-value {
-  color: #2c3e50;
-  font-size: 1.2rem;
-  font-weight: 500;
+  color: #1e3a5f;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 4px;
 }
 
 /* Description Section */

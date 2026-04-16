@@ -1,10 +1,11 @@
-// src/pages/EvaluationCycles.js
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { EditIcon, DeleteIcon, ViewIcon } from "../../assets"; // adjust paths
+import { NoDepartmentImg } from "../../assets";
 import "./Cycles.css";
+import "../Teams/Teams.css";
+import "../Employees/Employees.css";
 
 const EvaluationCycles = () => {
   const navigate = useNavigate();
@@ -100,7 +101,7 @@ const EvaluationCycles = () => {
 
   const handleViewAssignments = () => {
     if (!selectedCycle) return toast.error("Please select a cycle");
-    navigate("/cycle-assingment", { state: { cycle: selectedCycle } });
+    navigate("/create-cycle", { state: { isView: true, cycleToEdit: selectedCycle, isEdit: selectedCycle.status === 'draft' } });
   };
 
   const handleEdit = (cycle) => {
@@ -114,112 +115,132 @@ const EvaluationCycles = () => {
   if (loading) return <div className="loading">Loading cycles...</div>;
 
   return (
-    <div className="container">
-      {/* <div className="breadcrumb">
-        <span>Home</span> &gt; <span className="active">Evaluation Cycles</span>
-      </div> */}
-
-      <div className="header-section">
-        <h2 className="Matricestitle">Evaluation Cycles</h2>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>SR No</th>
-            <th>Cycle Name</th>
-            <th>Period</th>
-            <th>Status</th>
-            <th>Teams Assigned</th>
-            <th className="actions-header">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cycles.length > 0 ? (
-            cycles.map((cycle, index) => (
-              <tr
-                key={cycle.id}
-                className={selectedCycle?.id === cycle.id ? "selected-row" : ""}
-                onClick={() => handleRowClick(cycle)}
-                style={{ cursor: "pointer" }}
-              >
-                <td>{index + 1}</td>
-                <td>{cycle.name}</td>
-                <td>
-                  {new Date(cycle.start_date).toLocaleDateString()} -{" "}
-                  {new Date(cycle.end_date).toLocaleDateString()}
-                </td>
-                <td>
-                  <span className={`status-badge ${cycle.status}`}>
-                    {cycle.status.charAt(0).toUpperCase() + cycle.status.slice(1)}
-                  </span>
-                </td>
-                <td>{cycle.assigned_teams_count || 0}</td>
-                <td className="actions-cell" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => handleEdit(cycle)} className="icon-btn" title="Edit">
-                    <img src={EditIcon} alt="Edit" className="icon" />
-                  </button>
-                  <span className="divider">/</span>
-                  {cycle.status === "draft" && (
-                    <>
-                      <button
-                        onClick={() => handleActivate(cycle.id)}
-                        className="icon-btn activate-btn"
-                        title="Activate Cycle"
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle cx="12" cy="12" r="10" fill="#10B981" stroke="#059669" strokeWidth="2"/>
-                          <path d="M8 12L11 15L16 9" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-                      <span className="divider">/</span>
-                    </>
-                  )}
-                  {cycle.status === "active" && (
-                    <>
-                      <button
-                        onClick={() => handleComplete(cycle.id)}
-                        className="icon-btn complete-btn"
-                        title="Mark as Closed"
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect x="3" y="3" width="18" height="18" rx="3" fill="#3B82F6" stroke="#2563EB" strokeWidth="2"/>
-                          <path d="M7 12L10.5 15.5L17 9" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-                      <span className="divider">/</span>
-                    </>
-                  )}
-                  <button 
-                    onClick={() => handleDelete(cycle.id, cycle.status)} 
-                    className="icon-btn delete-btn"
-                    title="Delete Cycle"
-                    disabled={cycle.status === 'active'}
-                    style={{ opacity: cycle.status === 'active' ? 0.5 : 1 }}
-                  >
-                    <img src={DeleteIcon} alt="Delete" className="icon" />
-                  </button>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="6" className="no-data">No evaluation cycles found</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-
-      <div className="action-buttons">
-        <button className="view-matrix-btn" onClick={handleViewAssignments}>
-          View Assignments
-        </button>
-        <button
-          className="create-matrix-btn"
-          onClick={() => navigate("/create-cycle")}
-        >
+    <div className="container" style={{ paddingTop: '12px' }}>
+      <div className="header-section" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0' }}>
+        <h2 className="Matricestitle" style={{ margin: 0 }}>Evaluation Cycles</h2>
+        <button className="create-matrix-btn" style={{ whiteSpace: 'nowrap' }} onClick={() => navigate("/create-cycle")}>
           Create New Cycle
         </button>
+      </div>
+
+      <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
+        <table className="departments-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+          <colgroup>
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '28%' }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Cycle Name</th>
+              <th style={{ textAlign: 'center' }}>Period</th>
+              <th style={{ textAlign: 'center' }}>Status</th>
+              <th style={{ textAlign: 'center' }}>Teams</th>
+              <th style={{ textAlign: 'center' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cycles.length > 0 ? (
+              cycles.map((cycle) => (
+                <tr
+                  key={cycle.id}
+                  className={selectedCycle?.id === cycle.id ? "selected-row" : ""}
+                  onClick={() => handleRowClick(cycle)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <td><span className="emp-name-text">{cycle.name}</span></td>
+                  <td style={{ textAlign: 'center' }}>
+                    {new Date(cycle.start_date).toLocaleDateString()} –{" "}
+                    {new Date(cycle.end_date).toLocaleDateString()}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span className={`status-badge ${cycle.status}`}>
+                      {cycle.status.charAt(0).toUpperCase() + cycle.status.slice(1)}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>{cycle.assigned_teams_count || 0}</td>
+                  <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                    {/* 1. Edit */}
+                    <button onClick={() => handleEdit(cycle)} className="organization-icon-button action-btn-edit" title="Edit">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+
+                    {/* 2. Status — always 1 icon, changes by state */}
+                    {(cycle.status === 'draft' || cycle.status === 'Draft') && (
+                      <button onClick={() => handleActivate(cycle.id)} className="organization-icon-button" title="Activate Cycle" style={{ padding: '5px' }}>
+                        {/* Zap/lightning — green: ready to launch */}
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="#10b981" stroke="#10b981"/>
+                        </svg>
+                      </button>
+                    )}
+                    {(cycle.status === 'active' || cycle.status === 'Active') && (
+                      <button onClick={() => handleComplete(cycle.id)} className="organization-icon-button" title="Active Cycle" style={{ padding: '5px' }}>
+                        {/* Lock — purple */}
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                      </button>
+                    )}
+                    {(cycle.status !== 'draft' && cycle.status !== 'Draft' && cycle.status !== 'active' && cycle.status !== 'Active') && (
+                      <button className="organization-icon-button" disabled title="Cycle Closed" style={{ padding: '5px', opacity: 0.4, cursor: 'not-allowed' }}>
+                        {/* Archive box — grey: closed/done */}
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="21 8 21 21 3 21 3 8"/>
+                          <rect x="1" y="3" width="22" height="5"/>
+                          <line x1="10" y1="12" x2="14" y2="12"/>
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* 3. View Assignments */}
+                    <button
+                      onClick={() => navigate("/create-cycle", { state: { isView: true, cycleToEdit: cycle, isEdit: cycle.status === 'draft' } })}
+                      className="organization-icon-button action-btn-view"
+                      title="View Assignments"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    </button>
+
+                    {/* 4. Delete */}
+                    <button
+                      onClick={() => handleDelete(cycle.id, cycle.status)}
+                      className="organization-icon-button action-btn-delete"
+                      title="Delete Cycle"
+                      disabled={cycle.status === 'active' || cycle.status === 'Active'}
+                      style={{ opacity: (cycle.status === 'active' || cycle.status === 'Active') ? 0.4 : 1 }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                        <path d="M10 11v6M14 11v6"/>
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" style={{ padding: 0, border: 'none' }}>
+                  <div className="empty-state">
+                    <img src={NoDepartmentImg} alt="No Cycles" className="no-department-img" />
+                    <p className="empty-message-dept">No evaluation cycles found</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

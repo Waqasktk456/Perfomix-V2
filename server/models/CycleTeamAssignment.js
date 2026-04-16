@@ -2,12 +2,20 @@
 const db = require('../config/db');
 
 class CycleTeamAssignment {
-  static async create({ cycle_id, team_id, matrix_id, line_manager_id, team_name, matrix_name }) {
+  static async create({ cycle_id, team_id, matrix_id, line_manager_id, organization_id }) {
+    // Get organization_id from cycle if not provided
+    let orgId = organization_id;
+    if (!orgId) {
+      const [cycleRows] = await db.execute(
+        `SELECT organization_id FROM evaluation_cycles WHERE id = ?`, [cycle_id]
+      );
+      orgId = cycleRows[0]?.organization_id;
+    }
     const [result] = await db.execute(
       `INSERT INTO cycle_team_assignments 
-       (cycle_id, team_id, matrix_id, evaluator_id, line_manager_id, created_at)
-       VALUES (?, ?, ?, ?, ?, NOW())`,
-      [cycle_id, team_id, matrix_id, line_manager_id, line_manager_id]
+       (organization_id, cycle_id, team_id, matrix_id, evaluator_id, line_manager_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      [orgId, cycle_id, team_id, matrix_id, line_manager_id, line_manager_id]
     );
     return result.insertId;
   }

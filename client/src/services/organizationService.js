@@ -7,6 +7,10 @@ export const organizationService = {
   createOrganization: async (organizationData) => {
     try {
       const response = await axios.post(`${API_URL}/organizations`, organizationData);
+      // Save the refreshed token so subsequent requests use the new organizationId
+      if (response.data?.token) {
+        localStorage.setItem('token', response.data.token);
+      }
       return response.data;
     } catch (error) {
       console.error('Error creating organization:', error);

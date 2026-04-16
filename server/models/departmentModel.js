@@ -39,7 +39,8 @@ exports.getAllDepartments = async () => {
 exports.getDepartmentsByOrganization = async (organizationId) => {
   const query = `
     SELECT d.*, o.organization_name,
-    (SELECT COUNT(*) FROM employees e WHERE e.department_id = d.id AND e.deleted_at IS NULL) as number_of_employees
+    (SELECT COUNT(*) FROM employees e WHERE e.department_id = d.id AND e.deleted_at IS NULL) as number_of_employees,
+    (SELECT COUNT(*) FROM teams t WHERE t.department_id = d.id AND t.is_active = 1) as number_of_teams
     FROM departments d
     LEFT JOIN organizations o ON d.organization_id = o.id
     WHERE d.organization_id = ? 

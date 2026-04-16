@@ -16,13 +16,14 @@
 .add-employee-btn {
   background-color: var(--primary-color);
   color: white;
-  padding: 10px 16px;
+  padding: 12px 24px;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-family: var(--font-primary);
   font-weight: var(--font-weight-bold);
+  min-width: 150px;
 }
 
 .add-employee-btn:hover {
@@ -40,13 +41,26 @@
 .employees-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 24px;
+  border-spacing: 0;
+  margin-bottom: 0;
   font-size: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  table-layout: auto;
+  border: 1px solid #c2d8f5;
+}
+
+.employees-table thead tr th:first-child {
+  border-top-left-radius: 8px;
+}
+
+.employees-table thead tr th:last-child {
+  border-top-right-radius: 8px;
 }
 
 .employees-table th,
 .employees-table td {
-  padding: 10px;
+  padding: 7px 10px;
   border-bottom: 1px solid var(--data-text);
   font-size: var(--font-size-sm);
   font-family: var(--font-primary);
@@ -56,11 +70,17 @@
 
 .employees-table th {
   text-align: left;
-  padding: 10px;
-  color: var(--primary-color);
+  padding: 13px 10px 13px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: #1e3a5f;
+  background-color: #eaf1fb;
   font-size: var(--font-size-sm);
   font-family: var(--font-primary);
   font-weight: var(--font-weight-bold);
+  border-bottom: 2px solid #c2d8f5;
+  letter-spacing: 0.3px;
 }
 
 .employees-table tr {
@@ -165,9 +185,15 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 5px;
+  border-radius: 6px;
   vertical-align: middle;
+  transition: background 0.15s ease;
 }
+
+.action-btn-edit:hover  { background: #fef3c7; }
+.action-btn-delete:hover { background: #fee2e2; }
+.action-btn-view:hover  { background: #dbeafe; }
 
 .organization-icon {
   width: 20px;
@@ -274,4 +300,131 @@
   border-color: #2d6cdf;
   background-color: #fff;
   box-shadow: 0 0 0 4px rgba(45, 108, 223, 0.1);
+}
+
+.pagination-btn {
+  background: #fff;
+  color: var(--primary-color);
+  border: 1.5px solid #d1dff7;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 38px;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #eaf1ff;
+  border-color: var(--primary-color);
+}
+
+.pagination-btn:disabled {
+  color: #b3c6e6;
+  border-color: #e8eef8;
+  cursor: not-allowed;
+}
+
+.pagination-btn-active {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
+}
+
+.pagination-btn-active:hover {
+  background: var(--primary-color) !important;
+  opacity: 0.88;
+}
+
+.pagination-btn-nav {
+  background: var(--primary-color);
+  color: #fff;
+  border: 1.5px solid var(--primary-color);
+  border-radius: 6px;
+  padding: 7px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 80px;
+}
+
+.pagination-btn-nav:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.pagination-btn-nav:disabled {
+  background: #b3c6e6;
+  border-color: #b3c6e6;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Employee avatar in table */
+.emp-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.emp-name-text {
+  font-weight: 700;
+  color: #1e3a5f;
+}
+
+.emp-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.emp-avatar-fallback {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Department badge */
+.dept-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Pagination */
+.pagination-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.organization-view-icon {
+  filter: hue-rotate(180deg) brightness(0.9);
 }

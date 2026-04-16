@@ -1,3 +1,43 @@
+/* Table Styling */
+.performance-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.performance-matrix-table thead th {
+  text-align: center;
+  padding: 10px;
+  color: var(--primary-color);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.performance-matrix-table tbody tr {
+  height: 48px;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+}
+
+.performance-matrix-table tbody tr:hover {
+  background-color: var(--selected-text);
+}
+
+.performance-matrix-table tbody tr.selected-row {
+  background-color: var(--selected-text);
+  border-left: 4px solid var(--primary-color);
+}
+
+.performance-matrix-table tbody td {
+  padding: 10px;
+  border-bottom: 1px solid var(--data-text);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-normal);
+  white-space: nowrap;
+  text-align: center;
+}
 
 .Matricestitle {
   text-align: center;

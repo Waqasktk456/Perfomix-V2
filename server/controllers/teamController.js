@@ -125,6 +125,25 @@ exports.updateteam = async (req, res) => {
   }
 };
 
+exports.getTeamMembers = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [members] = await db.query(
+      `SELECT e.id, e.first_name, e.last_name, e.email, e.profile_image,
+              e.designation, d.department_name
+       FROM team_members tm
+       JOIN employees e ON tm.employee_id = e.id
+       LEFT JOIN departments d ON e.department_id = d.id
+       WHERE tm.team_id = ? AND e.deleted_at IS NULL`,
+      [id]
+    );
+    res.json({ data: members });
+  } catch (error) {
+    console.error("Get team members error:", error);
+    res.status(500).json({ error: "Failed to fetch team members" });
+  }
+};
+
 exports.deleteTeam = async (req, res) => {
   try {
     const { id } = req.params;

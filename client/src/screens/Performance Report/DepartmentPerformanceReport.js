@@ -2,9 +2,28 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList, CartesianGrid } from "recharts";
 import { generateProfessionalPDF } from '../../utils/pdfGenerator';
 import '../../LineManager/screens/team-performance.css';
+
+const getBarColor = (score) => {
+  if (score >= 80) return '#10b981'; // green
+  if (score >= 60) return '#f59e0b'; // orange
+  return '#ef4444';                  // red
+};
+
+const CustomTooltip = ({ active, payload }) => {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div style={{ background: '#fff', border: '1px solid #ddd', borderRadius: 8, padding: '10px 14px', fontSize: 13, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>{d.team}</div>
+      <div>Avg Score: <strong>{d.score}%</strong></div>
+      <div>Completion Rate: <strong>{d.completedCount > 0 ? Math.round((d.completedCount / d.employeeCount) * 100) : 0}%</strong></div>
+      <div>Total Members: <strong>{d.employeeCount}</strong></div>
+    </div>
+  );
+};
 
 const DepartmentPerformanceReport = () => {
   const navigate = useNavigate();
@@ -155,35 +174,64 @@ const DepartmentPerformanceReport = () => {
       )}
 
       {/* Team Comparison Chart */}
-      {teamChartData.length > 0 && (
-        <div className="performers-section">
-          <h2 className="section-title">Team Performance Comparison</h2>
-          <ResponsiveContainer width="100%" height={Math.max(200, teamChartData.length * 55)}>
-            <BarChart
-              data={teamChartData}
-              layout="vertical"
-              margin={{ top: 10, right: 60, left: 20, bottom: 10 }}
-            >
-              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
-              <YAxis type="category" dataKey="team" width={130} tick={{ fontSize: 13, fontWeight: 500 }} />
-              <Tooltip formatter={(value) => [`${value}`, 'Avg Score']} />
-              <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={28}>
-                {teamChartData.map((entry, index) => (
-                  <Cell
-                    key={index}
-                    fill={
-                      index === 0 ? '#00bfae' :
-                      index === teamChartData.length - 1 ? '#ff6b6b' :
-                      '#003f88'
-                    }
-                  />
-                ))}
-                <LabelList dataKey="score" position="right" style={{ fontSize: 13, fontWeight: 700, fill: '#333' }} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      <div className="performers-section">
+        <h2 className="section-title">Team Performance Comparison</h2>
+        <p style={{ color: '#64748b', fontSize: 13, marginTop: -8, marginBottom: 16 }}>
+          Comparison of team performance within this department
+        </p>
+
+        {teamChartData.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: 14 }}>
+            No team data available
+          </div>
+        ) : (
+          <>
+            {/* Insight bar */}
+            {(() => {
+              const best = teamChartData[0];
+              const worst = teamChartData[teamChartData.length - 1];
+              const gap = best && worst ? (best.score - worst.score).toFixed(1) : 0;
+              const noHighPerformer = teamChartData.every(t => t.score < 80);
+              return (
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#334155' }}>
+                  {noHighPerformer
+                    ? <span>⚠ No high-performing teams (≥80%) in this cycle.</span>
+                    : best && worst && best.team !== worst.team
+                      ? <span>📊 <strong>{best.team}</strong> leads with <strong>{best.score}%</strong>, while <strong>{worst.team}</strong> lags at <strong>{worst.score}%</strong> — a gap of <strong>{gap}%</strong>.</span>
+                      : <span>📊 <strong>{best?.team}</strong> is the only team with <strong>{best?.score}%</strong>.</span>
+                  }
+                </div>
+              );
+            })()}
+
+            <ResponsiveContainer width="100%" height={Math.max(260, teamChartData.length * 58)}>
+              <BarChart
+                data={teamChartData}
+                layout="vertical"
+                margin={{ top: 10, right: 70, left: 20, bottom: 10 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} tickFormatter={v => `${v}%`} />
+                <YAxis type="category" dataKey="team" width={140} tick={{ fontSize: 13, fontWeight: 500 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={30}>
+                  {teamChartData.map((entry, index) => (
+                    <Cell key={index} fill={getBarColor(entry.score)} />
+                  ))}
+                  <LabelList dataKey="score" position="right" formatter={v => `${v}%`} style={{ fontSize: 13, fontWeight: 700, fill: '#1e293b' }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+
+            {/* Legend */}
+            <div style={{ display: 'flex', gap: 20, marginTop: 12, fontSize: 12, color: '#475569' }}>
+              <span><span style={{ display: 'inline-block', width: 12, height: 12, background: '#10b981', borderRadius: 2, marginRight: 5 }}></span>High Performing (≥80%)</span>
+              <span><span style={{ display: 'inline-block', width: 12, height: 12, background: '#f59e0b', borderRadius: 2, marginRight: 5 }}></span>Average (60–79%)</span>
+              <span><span style={{ display: 'inline-block', width: 12, height: 12, background: '#ef4444', borderRadius: 2, marginRight: 5 }}></span>Needs Attention (&lt;60%)</span>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Teams Table */}
       <div className="members-section">

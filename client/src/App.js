@@ -61,6 +61,7 @@ import EditDepartment from "./screens/Departments/EditDepartment";
 import DepartmentDetails from './screens/Departments/DepartmentDetails';
 import EmployeeDetails from "./screens/Employees/EmployeeDetails";
 import Addteam from './screens/Teams/Addteam';
+import TeamDetails from './screens/Teams/TeamDetails';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import SettingsLayout from "./components/Settings/SettingsLayout";
@@ -151,6 +152,7 @@ function App() {
             <Route path="department-details" element={<DepartmentDetails />} />
             <Route path="view-matrix" element={<ViewMatrix />} />
             <Route path="teams" element={<Teams />} />
+            <Route path="teams/details/:team_id" element={<TeamDetails />} />
 
             <Route path="set-password" element={<SetPassword />} />
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Dashboard.css";
 import { PieChart, Pie, Cell, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, BarChart } from "recharts";
 import TotalEmployees from '../../assets/images/total-employee.png';
@@ -11,6 +12,7 @@ import { TrophyImg } from "../../assets";
 import axios from "axios";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [totalEmployees, setTotalEmployees] = useState(0);
   const [newHires, setNewHires] = useState(0);
   const [totalDepartments, setTotalDepartments] = useState(0);
@@ -20,6 +22,7 @@ const Dashboard = () => {
   const [topDepartment, setTopDepartment] = useState(null);
   const [lowestDepartment, setLowestDepartment] = useState(null);
   const [topTeam, setTopTeam] = useState(null);
+  const [lowestTeam, setLowestTeam] = useState(null);
   const [scoreDistribution, setScoreDistribution] = useState([]);
   const [deptCompletion, setDeptCompletion] = useState([]);
   const [employeesNeedingAttention, setEmployeesNeedingAttention] = useState([]);
@@ -51,12 +54,13 @@ const Dashboard = () => {
     axios.get("http://localhost:5000/api/cycles", config).then(res => {
       const cyclesData = Array.isArray(res.data) ? res.data : (res.data.data || []);
       console.log('Fetched cycles:', cyclesData);
-      setAllCycles(cyclesData);
+      const activeCycles = cyclesData.filter(c => c.status !== 'draft');
+      setAllCycles(activeCycles);
       
       // Automatically select the most recent cycle (first in the list)
-      if (cyclesData.length > 0) {
-        setSelectedCycleId(cyclesData[0].id);
-        setCurrentCycleId(cyclesData[0].id);
+      if (activeCycles.length > 0) {
+        setSelectedCycleId(activeCycles[0].id);
+        setCurrentCycleId(activeCycles[0].id);
       }
     }).catch(err => console.log('Error fetching cycles:', err));
 
@@ -176,6 +180,7 @@ const Dashboard = () => {
 
       const sortedTeams = teamAverages.sort((a, b) => b.avgScore - a.avgScore);
       const topTeamData = sortedTeams[0] || null;
+      const lowestTeamData = sortedTeams[sortedTeams.length - 1] || null;
       
       if (topTeamData) {
         // Fetch top 3 parameters for this team (use currentCycleId if available)
@@ -190,6 +195,7 @@ const Dashboard = () => {
       }
       
       setTopTeam(topTeamData);
+      setLowestTeam(lowestTeamData);
 
       // Calculate score distribution
       const ranges = {
@@ -272,6 +278,7 @@ const Dashboard = () => {
         if (reason) {
           attentionList.push({
             id: emp.Employee_id,
+            evaluation_id: emp.id, // evaluation record id
             name: `${emp.First_name} ${emp.Last_name}`,
             department: emp.Department_name || 'Unknown',
             currentScore: Math.round(currentScore),
@@ -298,43 +305,7 @@ const Dashboard = () => {
 
   return (
     <div>
-      {/* Stats Cards */}
-      <div className="stats-container">
-        {[{
-          title: "Total Employees",
-          count: totalEmployees,
-          change: "⬆ Dynamic", // You can add logic for change if needed
-          img: TotalEmployees
-        }, {
-          title: "New Hires",
-          count: newHires,
-          change: "⬆ Dynamic", // You can add logic for change if needed
-          img: NewHires
-        }, {
-          title: "Total Departments",
-          count: totalDepartments,
-          change: "⬆ Dynamic", // You can add logic for change if needed
-          img: TotalDepartment
-        }, {
-          title: "Pending Evaluations",
-          count: pendingEvaluations,
-          change: "⬆ Dynamic", // You can add logic for change if needed
-          img: PendingEvaluation
-        }].map((card, index) => (
-          <div className="stats-card" key={index}>
-            <div className="card-content">
-              <div>
-                <h3>{card.title}</h3>
-                <p className="count">{card.count}</p>
-                <p className={`change ${card.change.includes('⬇') ? 'down' : 'up'}`}>{card.change}</p>
-              </div>
-              <img src={card.img} alt={card.title} className="card-icon" />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Cycle Dropdown */}
+      {/* Cycle Dropdown - TOP */}
       <div className="cycle-selection-container">
         <label htmlFor="cycle-select" className="cycle-label">
           Evaluation Cycle:
@@ -357,25 +328,64 @@ const Dashboard = () => {
         </select>
       </div>
 
+      {/* Stats Cards */}
+      <div className="stats-container">
+        {[{
+          title: "Total Employees",
+          count: totalEmployees,
+          change: "",
+          img: TotalEmployees
+        }, {
+          title: "New Hires",
+          count: newHires,
+          change: "",
+          img: NewHires
+        }, {
+          title: "Total Departments",
+          count: totalDepartments,
+          change: "",
+          img: TotalDepartment
+        }, {
+          title: "Pending Evaluations",
+          count: pendingEvaluations,
+          change: "",
+          img: PendingEvaluation
+        }].map((card, index) => (
+          <div className="stats-card" key={index}>
+            <div className="card-content">
+              <div>
+                <h3>{card.title}</h3>
+                <p className="count">{card.count}</p>
+                <p className={`change ${card.change.includes('⬇') ? 'down' : 'up'}`}>{card.change}</p>
+              </div>
+              <img src={card.img} alt={card.title} className="card-icon" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+
 
 
       {/* Center Cards */}
       <div className="center-cards">
         {/* Top Performer */}
         <div className="top-performer-card">
-          <h3 style={{ textAlign: 'center', fontWeight: 600, fontSize: 32, marginBottom: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+          <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 20, marginBottom: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#36454F' }}>
             Top Performers
             <img src={TrophyImg} alt="Trophy" style={{ width: 40, height: 40 }} />
           </h3>
           <div className="performers" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-start', marginTop: 10, gap: '20px' }}>
-            {topPerformers.map((performer, index) => (
+            {topPerformers.length === 0 ? (
+              <p style={{ color: '#999', fontSize: 14, textAlign: 'center', width: '100%', padding: '20px 0' }}>No data available</p>
+            ) : topPerformers.map((performer, index) => (
               <div key={index} className="performer" style={{ textAlign: 'center', width: 'calc(33.333% - 14px)', minWidth: '150px', maxWidth: '200px' }}>
                 {performer ? (
                   <>
-                    <p className="name" style={{ color: '#00bfae', fontWeight: 600, fontSize: 18, margin: 0, textAlign: 'center' }}>{performer.First_name} {performer.Last_name}</p>
-                    <p className="role" style={{ color: '#a0aec0', fontWeight: 400, fontSize: 14, margin: 0, marginBottom: 10, textTransform: 'capitalize', textAlign: 'center' }}>{performer.Designation}</p>
+                    <p className="name" style={{ color: '#333333', fontWeight: 500, fontSize: 18, margin: 0, textAlign: 'center' }}>{performer.First_name} {performer.Last_name}</p>
+                    <p className="role" style={{ color: '#a0aec0', fontWeight: 400, fontSize: 16, margin: 0, marginBottom: 10, textTransform: 'capitalize', textAlign: 'center' }}>{performer.Designation}</p>
                     <img src={performer.Profile_image || profilepic} alt={performer.First_name} className="performer-pic" style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', marginBottom: 10, display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
-                    <p className="score" style={{ color: '#00bfae', fontWeight: 400, fontSize: 14, margin: 0, textAlign: 'center' }}>{Number.isFinite(performer?.overall_score) ? Math.round(performer.overall_score) : 0}</p>
+                    <p className="score" style={{ color: '#a0aec0', fontWeight: 400, fontSize: 14, margin: 0, textAlign: 'center' }}>{Number.isFinite(performer?.overall_score) ? Math.round(performer.overall_score) : 0}</p>
                   </>
                 ) : (
                   <div style={{ height: 100 }}></div>
@@ -384,10 +394,12 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
-
-        {/* Evaluations Pie Chart */}
         <div className="evaluations-card">
           <h3>Evaluations</h3>
+          {totalEvaluations === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#999', fontSize: 14 }}>No data available</div>
+          ) : (
+            <>
           <div className="chart-label complete-label">{completedPercent}% Evaluations are Complete</div>
           <div className="pie-chart-container">
             <PieChart width={180} height={180}>
@@ -412,6 +424,8 @@ const Dashboard = () => {
             <span className="legend-item"><span className="dot complete"></span> Completed</span>
             <span className="legend-item"><span className="dot pendingg"></span> Pending</span>
           </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -419,7 +433,7 @@ const Dashboard = () => {
       <div className="center-cards" style={{ marginTop: '20px' }}>
         {/* Left Card: Department Performance */}
         <div className="top-performer-card" style={{ flex: 1 }}>
-          <h3 style={{ textAlign: 'center', fontWeight: 600, fontSize: 24, marginBottom: 20 }}>Department Performance</h3>
+          <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 20, marginBottom: 20, color: '#36454F' }}>Department Performance</h3>
           
           <div style={{ display: 'flex', gap: '20px', justifyContent: 'space-around' }}>
             {/* Top Department */}
@@ -450,36 +464,39 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Right Card: Top Team */}
+        {/* Right Card: Team Performance */}
         <div className="top-performer-card" style={{ flex: 1 }}>
-          <h3 style={{ textAlign: 'center', fontWeight: 600, fontSize: 24, marginBottom: 20, color: '#00bfae' }}>Top Performing Team</h3>
-          {topTeam ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {/* Team Header */}
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ fontSize: 20, fontWeight: 600, color: '#002F6C', margin: '0 0 5px 0' }}>{topTeam.name}</p>
-                <p style={{ fontSize: 14, color: '#a0aec0', margin: '0 0 10px 0' }}>{topTeam.department}</p>
-                <p style={{ fontSize: 28, fontWeight: 700, color: '#00bfae', margin: '0' }}>{Math.round(topTeam.avgScore)}%</p>
-              </div>
+          <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 20, marginBottom: 20, color: '#36454F' }}>Team Performance</h3>
 
-              {/* Top 3 Parameters */}
-              {topTeamStrengths.length > 0 && (
-                <div style={{ borderTop: '1px solid #e0e0e0', paddingTop: '15px' }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: '#002F6C', margin: '0 0 10px 0' }}>Top 3 Parameters</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {topTeamStrengths.map((param, index) => (
-                      <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', backgroundColor: '#f9fafb', borderRadius: '4px' }}>
-                        <span style={{ fontSize: 12, color: '#002F6C', fontWeight: 500 }}>{param.parameter_name}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#00bfae' }}>{Math.round(param.avg_score)}</span>
-                      </div>
-                    ))}
-                  </div>
+          <div style={{ display: 'flex', gap: '20px', justifyContent: 'space-around' }}>
+            {/* Top Team */}
+            <div style={{ flex: 1, textAlign: 'center', padding: '15px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+              <p style={{ fontSize: 14, color: '#a0aec0', margin: '0 0 10px 0', fontWeight: 500 }}>Top Team</p>
+              {topTeam ? (
+                <div>
+                  <p style={{ fontSize: 18, fontWeight: 600, color: '#00bfae', margin: '5px 0' }}>{topTeam.name}</p>
+                  <p style={{ fontSize: 13, color: '#a0aec0', margin: '2px 0 8px' }}>{topTeam.department}</p>
+                  <p style={{ fontSize: 24, fontWeight: 700, color: '#00bfae', margin: '10px 0' }}>{Math.round(topTeam.avgScore)}%</p>
                 </div>
+              ) : (
+                <p style={{ color: '#999' }}>No data</p>
               )}
             </div>
-          ) : (
-            <p style={{ textAlign: 'center', color: '#999' }}>No data available</p>
-          )}
+
+            {/* Lowest Team */}
+            <div style={{ flex: 1, textAlign: 'center', padding: '15px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+              <p style={{ fontSize: 14, color: '#a0aec0', margin: '0 0 10px 0', fontWeight: 500 }}>Lowest Team</p>
+              {lowestTeam && lowestTeam.name !== topTeam?.name ? (
+                <div>
+                  <p style={{ fontSize: 18, fontWeight: 600, color: '#ff6b6b', margin: '5px 0' }}>{lowestTeam.name}</p>
+                  <p style={{ fontSize: 13, color: '#a0aec0', margin: '2px 0 8px' }}>{lowestTeam.department}</p>
+                  <p style={{ fontSize: 24, fontWeight: 700, color: '#ff6b6b', margin: '10px 0' }}>{Math.round(lowestTeam.avgScore)}%</p>
+                </div>
+              ) : (
+                <p style={{ color: '#999' }}>No data</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -487,7 +504,10 @@ const Dashboard = () => {
       <div className="center-cards" style={{ marginTop: '20px' }}>
         {/* Card 1: Employee Score Distribution */}
         <div className="top-performer-card" style={{ flex: 1 }}>
-          <h3 style={{ textAlign: 'center', fontWeight: 600, fontSize: 24, marginBottom: 20 }}>Employee Score Distribution</h3>
+          <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 20, marginBottom: 20, color: '#36454F' }}>Employee Score Distribution</h3>
+          {scoreDistribution.every(d => d.count === 0) ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#999', fontSize: 14 }}>No data available</div>
+          ) : (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
               data={scoreDistribution}
@@ -507,11 +527,13 @@ const Dashboard = () => {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+          )}
         </div>
-
-        {/* Card 2: Evaluation Completion by Department */}
         <div className="top-performer-card" style={{ flex: 1 }}>
-          <h3 style={{ textAlign: 'center', fontWeight: 600, fontSize: 24, marginBottom: 20 }}>Evaluation Completion by Department</h3>
+          <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 20, marginBottom: 20, color: '#36454F' }}>Evaluation Completion by Department</h3>
+          {deptCompletion.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#999', fontSize: 14 }}>No data available</div>
+          ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {deptCompletion.map((dept, index) => (
               <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -543,13 +565,12 @@ const Dashboard = () => {
               </div>
             ))}
           </div>
+          )}
         </div>
       </div>
-
-      {/* Row 5: Employees Needing Attention */}
       <div className="center-cards" style={{ marginTop: '20px' }}>
         <div className="top-performer-card" style={{ flex: 1 }}>
-          <h3 style={{ textAlign: 'center', fontWeight: 600, fontSize: 24, marginBottom: 20, color: '#ff6b6b' }}>Employees Needing Attention</h3>
+          <h3 style={{ textAlign: 'center', fontWeight: 700, fontSize: 20, marginBottom: 20, color: '#36454F' }}>Employees Needing Attention</h3>
           
           {employeesNeedingAttention.length > 0 ? (
             <>
@@ -559,31 +580,39 @@ const Dashboard = () => {
                     <th style={{ textAlign: 'left', padding: '10px', fontSize: 12, fontWeight: 600, color: '#002F6C' }}>Employee</th>
                     <th style={{ textAlign: 'left', padding: '10px', fontSize: 12, fontWeight: 600, color: '#002F6C' }}>Department</th>
                     <th style={{ textAlign: 'center', padding: '10px', fontSize: 12, fontWeight: 600, color: '#002F6C' }}>Score</th>
-                    <th style={{ textAlign: 'left', padding: '10px', fontSize: 12, fontWeight: 600, color: '#002F6C' }}>Reason</th>
                   </tr>
                 </thead>
                 <tbody>
                   {employeesNeedingAttention.map((emp, index) => (
-                    <tr key={index} style={{ borderBottom: '1px solid #f0f0f0', backgroundColor: index % 2 === 0 ? '#fafafa' : 'white' }}>
+                    <tr
+                      key={index}
+                      onClick={() => navigate('/view-performance-report', {
+                        state: {
+                          employee: { evaluation_id: emp.evaluation_id, name: emp.name },
+                          cycleId: selectedCycleId
+                        }
+                      })}
+                      style={{
+                        borderBottom: '1px solid #f0f0f0',
+                        backgroundColor: index % 2 === 0 ? '#fafafa' : 'white',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0f4ff'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = index % 2 === 0 ? '#fafafa' : 'white'}
+                    >
                       <td style={{ padding: '10px', fontSize: 13, color: '#002F6C', fontWeight: 500 }}>{emp.name}</td>
                       <td style={{ padding: '10px', fontSize: 13, color: '#666' }}>{emp.department}</td>
                       <td style={{ padding: '10px', fontSize: 13, fontWeight: 600, color: emp.currentScore < 60 ? '#ff6b6b' : '#ff9800', textAlign: 'center' }}>{emp.currentScore}</td>
-                      <td style={{ padding: '10px', fontSize: 13, color: '#666' }}>{emp.reason}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               <div style={{ textAlign: 'center' }}>
-                <button style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#ff6b6b',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  fontWeight: 500
-                }}>
+                <button
+                  onClick={() => navigate('/employee-performance')}
+                  style={{ padding: '8px 16px', backgroundColor: '#ff6b6b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
+                >
                   View All
                 </button>
               </div>
@@ -600,3 +629,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

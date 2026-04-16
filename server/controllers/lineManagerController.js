@@ -709,24 +709,6 @@ exports.submitEvaluation = async (req, res) => {
 
     await connection.commit();
 
-    // Trigger AI analysis non-blocking (don't await — don't fail submission if AI is down)
-    const { analyzeEvaluation: runAI } = require('../services/aiAnalysisService');
-    const db2 = require('../config/db');
-    db2.query(
-      `SELECT ed.parameter_id, p.parameter_name, ed.rating, ed.comments, ed.recommendation
-       FROM evaluation_details ed JOIN parameters p ON ed.parameter_id = p.id
-       WHERE ed.evaluation_id = ?`,
-      [evaluation_id]
-    ).then(([details]) => runAI(details).then(ai => {
-      const isFallback = !ai.summary || ai.summary === 'AI analysis unavailable.' || ai.summary === 'Insufficient feedback for summary generation.';
-      if (!isFallback) {
-        db2.query(
-          `UPDATE evaluations SET ai_summary=?, ai_sentiment=?, ai_flags=? WHERE id=?`,
-          [ai.summary, ai.overall_sentiment, JSON.stringify(ai.flags), evaluation_id]
-        );
-      }
-    })).catch(e => console.error('[AI] Non-blocking analysis failed:', e));
-
     // Send evaluation submitted notification to the staff member
     try {
       const [[evalDetails]] = await connection.query(`

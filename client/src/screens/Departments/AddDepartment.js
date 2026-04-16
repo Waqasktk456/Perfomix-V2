@@ -83,11 +83,14 @@ const AddDepartment = () => {
 
         // If editing, populate form with existing data
         if (isEdit) {
+          const editedType = isEdit.department_type || isEdit.Department_type || '';
+          const isCustom = editedType && !['Technical', 'Non-Technical', 'Operations', 'Support', 'Other'].includes(editedType);
+          if (isCustom) setShowCustomInput(true);
           setFormData({
             Department_code: isEdit.department_code || isEdit.Department_code,
             Organization_id: isEdit.organization_id || isEdit.Organization_id,
             Department_name: isEdit.department_name || isEdit.Department_name,
-            Department_type: isEdit.department_type || isEdit.Department_type,
+            Department_type: editedType,
             HOD: isEdit.hod || isEdit.HOD || '',
             Department_email_address: isEdit.department_email || isEdit.Department_email_address,
             Department_description: isEdit.department_description || isEdit.Department_description || ''
@@ -118,6 +121,23 @@ const AddDepartment = () => {
 
   // Fetching organizations and handling data loading already covers what's needed.
   // Parent department fetching logic removed.
+
+  const DEPT_TYPES = ['Technical', 'Non-Technical', 'Operations', 'Support', 'Other'];
+
+  // Determine if current value is a custom type (not in preset list)
+  const isCustomType = formData.Department_type && !DEPT_TYPES.includes(formData.Department_type);
+  const [showCustomInput, setShowCustomInput] = useState(isCustomType);
+
+  const handleDeptTypeChange = (e) => {
+    const val = e.target.value;
+    if (val === 'Other') {
+      setShowCustomInput(true);
+      setFormData(prev => ({ ...prev, Department_type: '' }));
+    } else {
+      setShowCustomInput(false);
+      setFormData(prev => ({ ...prev, Department_type: val }));
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -283,15 +303,28 @@ const AddDepartment = () => {
             <select
               className="department-input-field"
               name="Department_type"
-              value={formData.Department_type}
-              onChange={handleChange}
-              required
+              value={showCustomInput ? 'Other' : formData.Department_type}
+              onChange={handleDeptTypeChange}
+              required={!showCustomInput}
             >
               <option value="">Select Department Type</option>
               <option value="Technical">Technical</option>
-              <option value="Administrative">Administrative</option>
-              <option value="Other">Other</option>
+              <option value="Non-Technical">Non-Technical</option>
+              <option value="Operations">Operations</option>
+              <option value="Support">Support</option>
+              <option value="Other">Other (custom)</option>
             </select>
+            {showCustomInput && (
+              <input
+                type="text"
+                className="department-input-field"
+                style={{ marginTop: '8px' }}
+                placeholder="Enter custom department type"
+                value={formData.Department_type}
+                onChange={e => setFormData(prev => ({ ...prev, Department_type: e.target.value }))}
+                required
+              />
+            )}
           </div>
         </div>
         <div className="department-row">

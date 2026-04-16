@@ -12,6 +12,7 @@ router.use(verifyToken);
 router.get('/', teamcontroller.getAllTeams);
 router.post('/', teamcontroller.createteam);
 router.get('/:id', teamcontroller.getTeam);
+router.get('/:id/members', teamcontroller.getTeamMembers);
 router.put('/:id', teamcontroller.updateteam);
 router.delete('/:id', teamcontroller.deleteTeam);
 

@@ -69,7 +69,24 @@ const EmployeeDetails = () => {
             </div>
 
             <div className="detail-item">
-              <div className="detail-icon"><img src={EmployeeuserIcon} alt="User Icon" /></div>
+              <div className="detail-icon" style={{ background: 'none', padding: 0 }}>
+                {employee.profile_image ? (
+                  <img
+                    src={`http://localhost:5000${employee.profile_image}`}
+                    alt={employee.first_name}
+                    style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '64px', height: '64px', borderRadius: '50%',
+                    background: '#2d6cdf', color: '#fff', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 700, fontSize: '20px', textTransform: 'uppercase'
+                  }}>
+                    {employee.first_name?.[0]}{employee.last_name?.[0]}
+                  </div>
+                )}
+              </div>
               <div className="detail-info">
                 <span className="detail-label">Name</span>
                 <span className="detail-value">{employee.first_name} {employee.last_name}</span>
@@ -103,6 +120,14 @@ const EmployeeDetails = () => {
               <div className="detail-info">
                 <span className="detail-label">Designation</span>
                 <span className="detail-value">{employee.designation || 'N/A'}</span>
+              </div>
+            </div>
+
+            <div className="detail-item">
+              <div className="detail-icon">👥</div>
+              <div className="detail-info">
+                <span className="detail-label">Team</span>
+                <span className="detail-value">{employee.team_name || 'N/A'}</span>
               </div>
             </div>
 

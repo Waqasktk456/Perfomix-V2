@@ -48,11 +48,13 @@ const getEmployeeById = async (employeeId) => {
     SELECT 
       e.*,
       d.department_name,
-      t.team_name,
+      COALESCE(t.team_name, t2.team_name) AS team_name,
       o.organization_name
     FROM employees e
     LEFT JOIN departments d ON e.department_id = d.id
     LEFT JOIN teams t ON e.team_id = t.id
+    LEFT JOIN team_members tm ON e.id = tm.employee_id
+    LEFT JOIN teams t2 ON tm.team_id = t2.id
     LEFT JOIN organizations o ON e.organization_id = o.id
     WHERE e.id = ? AND e.deleted_at IS NULL
   `;

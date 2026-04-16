@@ -18,13 +18,14 @@
   width: 240px;
   min-width: 240px;
   flex-shrink: 0;
-  background: #ffffff;
+  background: #f8fafc;
   padding: 10px;
   height: 100vh;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
+  border-right: 1px solid #e5e7eb;
 }
 
 
@@ -81,19 +82,20 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  background: #f1f5f9;
 }
 
 
 .header {
   height: 60px;
-  background: #ffffff;
+  background: #f8fafc;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 30px;
-
   position: sticky;
   top: 0;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 
@@ -154,10 +156,11 @@
 
 /* Content Area */
 .content {
-  padding: 20px;
+  padding: 10px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  background: #f1f5f9;
 }
 
 

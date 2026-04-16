@@ -274,7 +274,6 @@ const CreateMatrix = () => {
                 className="add-parameter-btn"
                 onClick={() => setIsLibraryOpen(true)}
               >
-                <FaBook style={{ marginRight: '8px' }} />
                 Browse Library
               </button>
 
@@ -317,10 +316,12 @@ const CreateMatrix = () => {
                   <td>{param.description || "-"}</td>
                   <td style={{ textAlign: 'center' }}>
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       max="100"
-                      value={param.weightage || 0}
+                      value={param.weightage === 0 ? '' : param.weightage}
+                      placeholder="0"
                       onChange={(e) => handleWeightageChange(param.parameter_id, e.target.value)}
                       style={{
                         width: '60px',
@@ -373,8 +374,7 @@ const CreateMatrix = () => {
         </>
       ) : (
         <div className="empty-matrix-state">
-          <div style={{ fontSize: '40px', marginBottom: '20px' }}>📊</div>
-          <p className="empty-message" style={{ fontSize: '18px', color: '#888' }}>
+          <p className="empty-message" style={{ fontSize: '18px', color: '#888', textAlign: 'center' }}>
             There is no Parameter yet
           </p>
 
@@ -383,7 +383,6 @@ const CreateMatrix = () => {
               className="add-parameter-btn"
               onClick={() => setIsLibraryOpen(true)}
             >
-              <FaBook style={{ marginRight: '8px' }} />
               Browse Parameter Library
             </button>
 

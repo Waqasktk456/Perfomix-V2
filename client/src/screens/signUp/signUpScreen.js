@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { GoogleLogin } from "@react-oauth/google";
+import { useNavigate } from "react-router-dom";
 import "./SignupScreen.css";
 import SignupImg from '../../assets/images/SignupImg.png';
 import QuoteImg from '../../assets/images/quotesIcon.png'; 
@@ -8,19 +10,11 @@ import Googleicon from '../../assets/images/googleIcon.png'
 import '../../styles/typography.css';
 
 const SignupScreen = () => {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ firstName: "", email: "", password: "" });
+  const [showGoogleLogin, setShowGoogleLogin] = useState(false);
 
-  const [form, setForm] = useState({
-    firstName: "",
-    email: "",
-    password: "",
-  });
-
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.id]: e.target.value,
-    });
-  };
+  const handleChange = (e) => setForm({ ...form, [e.target.id]: e.target.value });
 
   const handleSignup = async () => {
     try {
@@ -29,14 +23,33 @@ const SignupScreen = () => {
         email: form.email,
         password: form.password,
       });
-
       if (res.data.success) {
         alert("Signup successful!");
-        window.location.href = "/login";
+        navigate("/login");
       }
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || "Signup failed");
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const res = await axios.post("http://localhost:5000/api/auth/google", {
+        token: credentialResponse.credential
+      });
+      const data = res.data;
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('userRole', data.user?.role || 'admin');
+        localStorage.setItem('userName', data.user?.name || '');
+        localStorage.setItem('userEmail', data.user?.email || '');
+        if (data.user?.picture) localStorage.setItem('userPicture', data.user.picture);
+        navigate(data.hasOrganization ? '/dashboard' : '/add-organization');
+      }
+    } catch (err) {
+      console.error('Google signup error:', err);
+      alert(err.response?.data?.message || 'Google signup failed');
     }
   };
 
@@ -110,10 +123,18 @@ const SignupScreen = () => {
           </div>
 
           <div className="google-btn-container">
-            <button className="google-btn">
-              <img src={Googleicon} alt="Google" className="google-icon" /> 
-              Sign Up with Google
-            </button>
+            {showGoogleLogin ? (
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => alert('Google sign-in failed. Please try again.')}
+                useOneTap={false}
+              />
+            ) : (
+              <button className="google-btn" onClick={() => setShowGoogleLogin(true)}>
+                <img src={Googleicon} alt="Google" className="google-icon" /> 
+                Sign Up with Google
+              </button>
+            )}
           </div>
 
         </div>

@@ -32,13 +32,15 @@
     background-color: var(--white-color, #ffffff);
     width: 95%;
     max-width: 1100px;
-    height: 90vh;
+    height: auto;
+    max-height: 90vh;
     border-radius: 16px;
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     border: 1px solid var(--border-color, #e5e7eb);
+    overflow: hidden;
 }
 
 @keyframes slideUp {
@@ -95,6 +97,28 @@
 .btn-close-icon:hover {
     color: var(--primary-color, #111827);
     background-color: var(--bgcolor, #f3f4f6);
+}
+
+.btn-close {
+    background: none;
+    border: 2px solid #003366;
+    color: #003366;
+    font-size: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: all 0.2s;
+    font-weight: 700;
+}
+
+.btn-close:hover {
+    background-color: #003366;
+    color: #ffffff;
 }
 
 /* Controls (Search & Filter) */
@@ -163,11 +187,12 @@
 
 /* Scrollable Content Area */
 .library-content {
-    flex: 1;
     overflow-y: auto;
     background-color: var(--bgcolor, #f9fafb);
     display: flex;
     flex-direction: column;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
 }
 
 /* Category Selection View */
@@ -240,21 +265,21 @@
 
 /* Back Button */
 .btn-back-categories {
-    padding: 8px 16px;
-    background-color: white;
-    border: 1px solid #e2e8f0;
+    padding: 8px 14px;
+    background-color: #003366;
+    border: none;
     border-radius: 8px;
-    color: #4a5568;
-    font-weight: 600;
-    font-size: 13px;
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 16px;
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
+    line-height: 1;
 }
 
 .btn-back-categories:hover {
-    background-color: #f8fafc;
-    border-color: #cbd5e0;
+    background-color: #004080;
 }
 
 /* Parameter Grid View */
@@ -519,4 +544,139 @@
     background: var(--white-color, #ffffff);
     border-radius: 12px;
     border: 1px dashed var(--border-color, #e5e7eb);
+}
+
+/* Parameter Table */
+.lib-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.lib-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #ffffff;
+}
+
+.lib-table thead tr {
+    background-color: #ffffff;
+    border-bottom: 2px solid #003366;
+}
+
+.lib-table thead th {
+    padding: 13px 18px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    color: #003366;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    background-color: #ffffff;
+    z-index: 1;
+}
+
+.lib-table thead th:last-child {
+    text-align: center;
+    width: 90px;
+}
+
+.lib-table tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.15s;
+}
+
+.lib-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.lib-table tbody tr:hover {
+    background-color: #f8faff;
+}
+
+.lib-row-selected {
+    background-color: #eff6ff;
+}
+
+.lib-row-added {
+    opacity: 0.6;
+    background-color: #f9fafb;
+}
+
+.lib-col-name {
+    padding: 13px 18px;
+    font-weight: var(--font-weight-normal);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-primary);
+    color: var(--text-dark, #1a202c);
+    width: 25%;
+    white-space: nowrap;
+    text-align: left;
+    vertical-align: top;
+}
+
+.lib-col-desc {
+    padding: 13px 18px;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-normal);
+    color: var(--text-dark, #4a5568);
+    line-height: 1.6;
+    text-align: left;
+    vertical-align: top;
+}
+
+.lib-col-action {
+    padding: 13px 18px;
+    text-align: center;
+    width: 80px;
+    vertical-align: middle;
+}
+
+.lib-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.lib-btn-add {
+    background-color: #003366;
+    color: #ffffff;
+}
+
+.lib-btn-add:hover {
+    background-color: #004080;
+    transform: scale(1.1);
+}
+
+.lib-btn-remove {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+.lib-btn-remove:hover {
+    background-color: #fecaca;
+    transform: scale(1.1);
+}
+
+.lib-added-badge {
+    font-size: 12px;
+    color: #10b981;
+    font-weight: 700;
+    background: #ecfdf5;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
 }

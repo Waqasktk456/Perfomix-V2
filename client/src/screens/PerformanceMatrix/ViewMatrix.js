@@ -1,13 +1,16 @@
-// src/pages/ViewMatrix.js
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./CreateMatrix.css";
+import "../Departments/Department.css";
+import "../Teams/Teams.css";
+import "../Employees/Employees.css";
 import { DeleteIcon } from "../../assets";
 import axios from "axios";
 import { toast } from "react-toastify";
 
 const ViewMatrix = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const matrix = location.state?.matrix;
 
   const [parameters, setParameters] = useState(matrix?.parameters || []);
@@ -52,36 +55,43 @@ const ViewMatrix = () => {
 
   return (
     <div style={{ padding: "32px 0", maxWidth: "1200px", margin: "0 auto" }}>
-      <div style={{ color: "#666", marginBottom: 16 }}>
+      <div style={{ color: "#666", marginBottom: 12, fontSize: 14 }}>
         Performance Matrix › <strong>View Matrix</strong>
       </div>
-
-      <div style={{ textAlign: "center", marginBottom: 32 }}>
-        <h1 style={{ fontSize: 36, fontWeight: 700, color: "#002f5f" }}>
-          {matrix.matrix_name}
-        </h1>
-        <p style={{ fontSize: 20, color: "#002f5f" }}>ID: {matrix.matrix_id}</p>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+        <button className="back-button" onClick={() => navigate(-1)}>← Back</button>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#002f5f", margin: 0 }}>
+            {matrix.matrix_name}
+          </h1>
+        </div>
       </div>
 
-      <table className="matrix-table" style={{ width: "100%" }}>
-        <thead>
-          <tr>
-            <th>PARAMETER NAME</th>
-            <th>WEIGHTAGE</th>
-            <th>DESCRIPTION</th>
-          </tr>
-        </thead>
-        <tbody>
-          {parameters.map((param) => (
-            <tr key={param.parameter_id}>
-              <td><strong>{param.parameter_name}</strong></td>
-              <td><strong>{param.weightage}%</strong></td>
-              <td>{param.description || "-"}</td>
-              
+      <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
+        <table className="departments-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+          <colgroup>
+            <col style={{ width: '35%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '50%' }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Parameter Name</th>
+              <th style={{ textAlign: 'center' }}>Weightage</th>
+              <th>Description</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {parameters.map((param) => (
+              <tr key={param.parameter_id}>
+                <td><span className="emp-name-text">{param.parameter_name}</span></td>
+                <td style={{ textAlign: 'center' }}><strong>{param.weightage}%</strong></td>
+                <td>{param.description || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

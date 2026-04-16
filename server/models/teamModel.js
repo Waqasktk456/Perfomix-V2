@@ -19,11 +19,17 @@ exports.createTeam = async (connection, teamData) => {
   return result.insertId;
 };
 
-exports.addTeamMembers = async (connection, teamId, memberIds) => {
-  const values = memberIds.map(empId => [teamId, empId]);
+exports.addTeamMembers = async (connection, teamId, memberIds, organizationId) => {
+  // Get org_id from team if not provided
+  let orgId = organizationId;
+  if (!orgId) {
+    const [rows] = await connection.query('SELECT organization_id FROM teams WHERE id = ?', [teamId]);
+    orgId = rows[0]?.organization_id;
+  }
+  const values = memberIds.map(empId => [orgId, teamId, empId]);
 
   const query = `
-    INSERT INTO team_members (team_id, employee_id)
+    INSERT INTO team_members (organization_id, team_id, employee_id)
     VALUES ?
   `;
 

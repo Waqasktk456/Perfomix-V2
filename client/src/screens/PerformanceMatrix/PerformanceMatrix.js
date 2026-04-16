@@ -96,7 +96,7 @@ const PerformanceMatrices = () => {
         <h2 className="Matricestitle">Performance Matrices</h2>
       </div>
 
-      <table>
+      <table className="performance-matrix-table">
         <thead>
           <tr>
             <th>SR No</th>
@@ -168,7 +168,7 @@ const PerformanceMatrices = () => {
           className="create-matrix-btn"
           onClick={() => navigate("/create-matrix")}
         >
-          ✏️ Create Matrix
+          Create Matrix
         </button>
       </div>
     </div>

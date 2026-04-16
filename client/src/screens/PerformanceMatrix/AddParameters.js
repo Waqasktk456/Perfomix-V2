@@ -202,9 +202,9 @@ const AddParameters = () => {
 
           <AddInputField
             label={`Weightage (Max: ${maxAllowed}%)`}
-            type="number"
-            min="0"
-            max={maxAllowed}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             placeholder={`e.g., ${Math.min(25, maxAllowed)}`}
             value={weightage}
             onChange={(e) => {

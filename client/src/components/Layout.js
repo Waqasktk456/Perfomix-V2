@@ -6,7 +6,6 @@ import notificationIcon from "../assets/images/notification.png";
 import profilePic from "../assets/images/profile.png";
 import '../styles/typography.css'
 
-import SearchBar from "./Searchbar/Searchbar";
 import NotificationBell from "./NotificationBell";
 import { DashboardIcon, DepartmentIcon, EmployeesIcon, LogoutIcon, NOtificationIcon, OrganizationIcon, PerformanceEvaluationIcon, PerformanceMatrixIcon, PerformanceReportIcon, ProfileSideBar, SettingIcon, Teamicon } from "../assets";
 
@@ -224,12 +223,19 @@ const Layout = () => {
       {/* Main content area */}
       <div className="main-container">
         <div className="header">
-          <SearchBar />
           {/* Icons and Profile Section */}
-          <div className="header-right">
+          <div className="header-right" style={{ marginLeft: 'auto' }}>
             <NotificationBell />
-            <span className="language">English ▼</span>
-            <div className="profile">
+            <div
+              className="profile"
+              onClick={() => {
+                const r = localStorage.getItem('userRole') || '';
+                if (r.toLowerCase() === 'admin') navigate('/admin-profile');
+                else if (r.toLowerCase() === 'line-manager') navigate('/linemanager-setting');
+                else navigate('/staff-setting');
+              }}
+              style={{ cursor: 'pointer' }}
+            >
               {userPicture ? (
                 <img
                   src={

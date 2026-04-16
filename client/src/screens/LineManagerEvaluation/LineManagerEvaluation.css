@@ -285,3 +285,32 @@
   font-weight: 600;
   display: inline-block;
 } 
+
+/* Compact table rows */
+.lm-eval-container .departments-table td {
+  padding: 11px 10px 11px 20px;
+}
+
+.lm-eval-container .emp-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+}
+
+/* Remove gap between header table and body table */
+.lm-eval-container .lm-thead-table {
+  border-bottom: none !important;
+}
+
+.lm-eval-container .lm-thead-table thead tr th:last-child,
+.lm-eval-container .lm-thead-table thead tr th:first-child {
+  border-radius: 0 !important;
+}
+
+.lm-eval-container .lm-tbody-scroll {
+  margin-top: 0 !important;
+}
+
+.lm-eval-container .lm-tbody-scroll .departments-table {
+  border-top: none !important;
+}

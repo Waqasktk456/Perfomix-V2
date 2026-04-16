@@ -1,6 +1,7 @@
 const organizationModel = require('../models/organizationModel');
 const PerformanceRating = require('../models/PerformanceRating');
 const mysql = require("mysql2/promise");
+const jwt = require('jsonwebtoken');
 
 // DB Pool - MUST match your database name
 const pool = mysql.createPool({
@@ -71,13 +72,26 @@ const createOrganization = async (req, res) => {
       console.log(`✅ Default performance ratings created for organization ${organizationId}`);
     } catch (ratingError) {
       console.error('Error creating default ratings:', ratingError);
-      // Don't fail the organization creation if ratings fail
     }
+
+    // 4. Fetch updated user to get role for new token
+    const [[updatedUser]] = await pool.query(
+      'SELECT id, role FROM users WHERE id = ?',
+      [userId]
+    );
+
+    // 5. Issue a fresh token with the new organizationId
+    const newToken = jwt.sign(
+      { id: updatedUser.id, role: updatedUser.role, organizationId },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     res.status(201).json({ 
       success: true,
       message: 'Organization created successfully',
-      organizationId: organizationId,
+      organizationId,
+      token: newToken,
       data: results 
     });
 

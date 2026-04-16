@@ -12,8 +12,12 @@ router.get('/admin/employee-list', reportController.getAdminEmployeeList);
 
 // Line Manager Routes
 router.get('/manager/team-report', reportController.getTeamReport);
+router.get('/team', reportController.getTeamReport); // alias used by admin view
 
 // Individual Report (Accessible by Admin, Manager of the employee, or the employee themselves)
 router.get('/individual/:evaluation_id', reportController.getIndividualReport);
+
+// Department Report
+router.get('/department', reportController.getDepartmentReport);
 
 module.exports = router;

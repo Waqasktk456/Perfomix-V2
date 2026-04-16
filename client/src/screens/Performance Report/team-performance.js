@@ -32,13 +32,14 @@ const TeamPerformance = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const response = await axios.get("http://localhost:5000/api/cycles", config);
       const cyclesData = Array.isArray(response.data) ? response.data : [];
-      setCycles(cyclesData);
+      const filtered = cyclesData.filter(c => c.status !== 'draft');
+      setCycles(filtered);
       
       // If team data is passed from line manager, use that cycle, otherwise use latest
       if (teamFromState && teamFromState.cycle_id) {
         setSelectedCycleId(teamFromState.cycle_id);
-      } else if (cyclesData.length > 0) {
-        setSelectedCycleId(cyclesData[0].id);
+      } else if (filtered.length > 0) {
+        setSelectedCycleId(filtered[0].id);
       } else {
         setLoading(false);
       }
@@ -69,6 +70,7 @@ const TeamPerformance = () => {
             teamMap[teamName] = {
               name: teamName,
               department: emp.Department_name || "Unknown",
+              team_id: emp.team_id,
               employees: [],
               scores: [],
             };
@@ -82,9 +84,10 @@ const TeamPerformance = () => {
           srNo: index + 1,
           name: team.name,
           department: team.department,
+          team_id: team.team_id,
           employeeCount: team.employees.length,
           averageScore: (team.scores.reduce((a, b) => a + b, 0) / team.scores.length).toFixed(2),
-          trend: "→", // Placeholder for trend
+          trend: "→",
         }));
 
         setTeams(teamsData);
@@ -141,14 +144,12 @@ const TeamPerformance = () => {
               <th>Department</th>
               <th>Employees</th>
               <th>Average Score</th>
-              <th>Trend</th>
-              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {teams.length === 0 ? (
               <tr>
-                <td colSpan="7" style={{ textAlign: "center", padding: "40px" }}>
+                <td colSpan="5" style={{ textAlign: "center", padding: "40px" }}>
                   No teams found for this cycle
                 </td>
               </tr>
@@ -165,8 +166,6 @@ const TeamPerformance = () => {
                   <td>{team.department}</td>
                   <td>{team.employeeCount}</td>
                   <td>{team.averageScore}</td>
-                  <td>{team.trend}</td>
-                  <td className="action-view">View</td>
                 </tr>
               ))
             )}
@@ -195,12 +194,26 @@ const TeamPerformance = () => {
                   // Filter employees for this team
                   const teamEmployees = evaluations.filter(emp => emp.Team_name === selectedTeam.name);
                   
+                  // Get the real assignment_id from cycle_team_assignments
+                  let realAssignmentId = null;
+                  try {
+                    const assignRes = await axios.get(
+                      `http://localhost:5000/api/cycle-assignments/${selectedCycleId}`,
+                      config
+                    );
+                    const assignments = Array.isArray(assignRes.data) ? assignRes.data : (assignRes.data.data || []);
+                    const match = assignments.find(a => Number(a.team_id) === Number(selectedTeam.team_id));
+                    if (match) realAssignmentId = match.id || match.assignment_id;
+                  } catch (e) {
+                    console.warn('Could not fetch assignment_id:', e.message);
+                  }
+
                   const navigationPath = "/adminview-teams-performance";
                   
                   navigate(navigationPath, {
                     state: {
-                      assignment_id: selectedTeam.srNo,
-                      team_id: selectedTeam.srNo,
+                      assignment_id: realAssignmentId,
+                      team_id: selectedTeam.team_id,
                       team_name: selectedTeam.name,
                       department_name: selectedTeam.department,
                       employee_count: selectedTeam.employeeCount,

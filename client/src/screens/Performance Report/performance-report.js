@@ -8,6 +8,16 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { generateProfessionalPDF } from '../../utils/pdfGenerator';
 
+const AVATAR_COLORS = [
+  '#e74c3c', '#e67e22', '#f39c12', '#27ae60', '#16a085',
+  '#2980b9', '#8e44ad', '#d35400', '#c0392b', '#1abc9c',
+];
+const getAvatarColor = (name = '') => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
+
 const EmployeePerformanceReport = () => {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState("All");
@@ -38,9 +48,10 @@ const EmployeePerformanceReport = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const response = await axios.get('http://localhost:5000/api/cycles', config);
       const cyclesData = Array.isArray(response.data) ? response.data : [];
-      setCycles(cyclesData);
-      if (cyclesData.length > 0) {
-        setSelectedCycleId(cyclesData[0].id);
+      const filtered = cyclesData.filter(c => c.status !== 'draft');
+      setCycles(filtered);
+      if (filtered.length > 0) {
+        setSelectedCycleId(filtered[0].id);
       } else {
         setLoading(false);
       }
@@ -312,22 +323,26 @@ const EmployeePerformanceReport = () => {
       {/* Table with fixed height and scroll */}
       <div className="table-container-scroll">
         <table className="report-table">
+          <colgroup>
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '20%' }} />
+          </colgroup>
           <thead>
             <tr>
-              <th>SR NO</th>
-              <th>Profile</th>
-              <th>Employee Name </th>
+              <th>Name</th>
               <th>Department </th>
               <th>Designation</th>
               <th>Evaluation Status</th>
               <th>Score</th>
-              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {filteredEmployees.length === 0 ? (
               <tr>
-                <td colSpan="8" style={{ textAlign: "center", padding: "40px" }}>
+                <td colSpan="5" style={{ textAlign: "center", padding: "40px" }}>
                   No employees found
                 </td>
               </tr>
@@ -339,14 +354,22 @@ const EmployeePerformanceReport = () => {
                   onClick={() => setSelectedEmployee({ ...emp, _rowIndex: index })}
                   style={{ cursor: 'pointer' }}
                 >
-                  <td>{index + 1}</td>
-                  <td>{renderProfileImage(emp)}</td>
-                  <td>{emp.name}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {emp.profile && emp.profile !== 'https://via.placeholder.com/40' ? (
+                        <img src={emp.profile} alt="Profile" style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: getAvatarColor(emp.name), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px', flexShrink: 0, textTransform: 'uppercase' }}>
+                          {getInitials(emp.name)}
+                        </div>
+                      )}
+                      <span style={{ fontWeight: 600, color: '#1e3a5f' }}>{emp.name}</span>
+                    </div>
+                  </td>
                   <td>{emp.department}</td>
                   <td>{emp.designation}</td>
                   <td className={emp.status === "Complete" ? "status-complete" : "status-pending"}>{emp.status}</td>
                   <td>{emp.score}</td>
-                  <td className={emp.action === "Download Report" ? "action-download" : "action-reminder"}>{emp.action}</td>
                 </tr>
               ))
             )}

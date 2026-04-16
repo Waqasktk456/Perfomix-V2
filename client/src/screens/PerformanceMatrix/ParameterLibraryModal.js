@@ -120,7 +120,7 @@ const ParameterLibraryModal = ({ isOpen, onClose, onAddParameters, existingParam
                 {view === 'parameters' && (
                     <div className="library-controls">
                         <button className="btn-back-categories" onClick={() => setView('categories')}>
-                            ← Back to Categories
+                            &#10094;
                         </button>
                         <div className="search-input-wrapper">
                             <input
@@ -134,7 +134,7 @@ const ParameterLibraryModal = ({ isOpen, onClose, onAddParameters, existingParam
                     </div>
                 )}
 
-                <div className="library-content" style={{ padding: '32px', backgroundColor: '#f9fafb', flex: 1, overflowY: 'auto' }}>
+                <div className="library-content" style={{ padding: '32px', backgroundColor: '#f9fafb', overflowY: 'auto' }}>
                     {loading ? (
                         <div className="loading-spinner">Loading library...</div>
                     ) : view === 'categories' ? (
@@ -153,53 +153,47 @@ const ParameterLibraryModal = ({ isOpen, onClose, onAddParameters, existingParam
                             </div>
                         </div>
                     ) : (
-                        <div className="library-parameter-grid">
+                        <div className="lib-table-wrapper">
                             {filteredParameters.length > 0 ? (
-                                filteredParameters.map(param => {
-                                    const added = isAlreadyAdded(param.id);
-                                    const selected = selectedIds.has(param.id);
-                                    return (
-                                        <div
-                                            key={param.id}
-                                            className={`parameter-card ${selected ? 'selected' : ''} ${added ? 'disabled' : ''}`}
-                                            onClick={() => !added && toggleSelection(param.id)}
-                                            style={added ? { opacity: 0.6, cursor: 'not-allowed', backgroundColor: '#f3f4f6', borderStyle: 'dashed' } : {}}
-                                        >
-                                            <div className="parameter-card-header">
-                                                <span className="parameter-name">{param.parameter_name}</span>
-                                                <div className="checkbox-indicator"></div>
-                                            </div>
-
-                                            <div style={{ marginBottom: '8px' }}>
-                                                <span className="category-badge">{param.category || 'General'}</span>
-                                            </div>
-
-                                            <p className="parameter-description">
-                                                {param.description || 'No description available.'}
-                                            </p>
-
-                                            {added && (
-                                                <div style={{
-                                                    marginTop: '12px',
-                                                    fontSize: '12px',
-                                                    color: '#10b981',
-                                                    fontWeight: '700',
-                                                    background: '#ecfdf5',
-                                                    padding: '4px 8px',
-                                                    borderRadius: '4px',
-                                                    display: 'inline-block'
-                                                }}>
-                                                    ✓ Already Added
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })
+                                <table className="lib-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Parameter Name</th>
+                                            <th>Description</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredParameters.map(param => {
+                                            const added = isAlreadyAdded(param.id);
+                                            const selected = selectedIds.has(param.id);
+                                            return (
+                                                <tr key={param.id} className={added ? 'lib-row-added' : selected ? 'lib-row-selected' : ''}>
+                                                    <td className="lib-col-name">{param.parameter_name}</td>
+                                                    <td className="lib-col-desc">{param.description || 'No description available.'}</td>
+                                                    <td className="lib-col-action">
+                                                        {added ? (
+                                                            <span className="lib-added-badge">✓ Added</span>
+                                                        ) : (
+                                                            <button
+                                                                className={`lib-action-btn ${selected ? 'lib-btn-remove' : 'lib-btn-add'}`}
+                                                                onClick={() => toggleSelection(param.id)}
+                                                                title={selected ? 'Remove' : 'Add'}
+                                                            >
+                                                                {selected ? '−' : '+'}
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             ) : (
                                 <div className="no-results">
                                     <p>No parameters found in this category.</p>
                                     <button onClick={() => setView('categories')} className="btn-back-categories" style={{ marginTop: '10px' }}>
-                                        Try another category
+                                        &#10094;
                                     </button>
                                 </div>
                             )}
@@ -207,6 +201,7 @@ const ParameterLibraryModal = ({ isOpen, onClose, onAddParameters, existingParam
                     )}
                 </div>
 
+                {view === 'parameters' && (
                 <div className="library-footer">
                     <span className="selection-count">
                         {selectedIds.size} parameter{selectedIds.size !== 1 ? 's' : ''} selected
@@ -222,6 +217,7 @@ const ParameterLibraryModal = ({ isOpen, onClose, onAddParameters, existingParam
                         </button>
                     </div>
                 </div>
+                )}
             </div>
         </div>
     );

@@ -3,6 +3,34 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import './LineManagerEvaluation.css';
+import '../Teams/Teams.css';
+import '../Employees/Employees.css';
+import { NoDepartmentImg } from '../../assets';
+
+const AVATAR_COLORS = [
+  '#e74c3c','#e67e22','#f39c12','#27ae60','#16a085',
+  '#2980b9','#8e44ad','#d35400','#c0392b','#1abc9c',
+];
+const DEPT_BADGE_COLORS = [
+  { bg: '#e8f0fe', text: '#4a6fa5' },
+  { bg: '#e8f5e9', text: '#4a7c59' },
+  { bg: '#fef9e7', text: '#8a7340' },
+  { bg: '#f3e8ff', text: '#7a5fa5' },
+  { bg: '#e0f7fa', text: '#3d7a82' },
+  { bg: '#fce4ec', text: '#a05070' },
+  { bg: '#fff3e0', text: '#8a6040' },
+  { bg: '#e8eaf6', text: '#5560a0' },
+];
+const getAvatarColor = (name = '') => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+};
+const getDeptBadgeColor = (dept = '') => {
+  let h = 0;
+  for (let i = 0; i < dept.length; i++) h = dept.charCodeAt(i) + ((h << 5) - h);
+  return DEPT_BADGE_COLORS[Math.abs(h) % DEPT_BADGE_COLORS.length];
+};
 
 const LineManagerEvaluationScreen = () => {
   const navigate = useNavigate();
@@ -49,11 +77,12 @@ const LineManagerEvaluationScreen = () => {
       const config = getAuthConfig();
       const response = await axios.get('http://localhost:5000/api/cycles', config);
       const cyclesData = Array.isArray(response.data) ? response.data : [];
-      setCycles(cyclesData);
+      const filtered = cyclesData.filter(c => c.status !== 'draft');
+      setCycles(filtered);
       
       // Automatically select the most recent cycle (first in the list)
-      if (cyclesData.length > 0) {
-        setSelectedCycleId(cyclesData[0].id);
+      if (filtered.length > 0) {
+        setSelectedCycleId(filtered[0].id);
       }
     } catch (error) {
       console.error('Error fetching cycles:', error);
@@ -257,7 +286,7 @@ const LineManagerEvaluationScreen = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="search-container-main" style={{ marginBottom: '20px' }}>
+      <div className="search-container-main" style={{ marginBottom: '8px' }}>
         <div className="search-input-wrapper">
           <input
             type="text"
@@ -286,75 +315,93 @@ const LineManagerEvaluationScreen = () => {
 
       {lineManagers.length === 0 ? (
         <div className="empty-state">
+          <img src={NoDepartmentImg} alt="No Line Managers" className="no-department-img" />
           <p className="empty-message-dept">There are no Line Managers yet</p>
         </div>
       ) : (
         <>
-          <div className="lm-table-container-scroll">
-            <table className="employees-table">
+          <div style={{ borderRadius: '8px', border: '1px solid #c2d8f5', overflow: 'hidden' }}>
+            {/* Sticky header */}
+            <table className="departments-table lm-thead-table" style={{ tableLayout: 'fixed', width: '100%', marginBottom: 0 }}>
+              <colgroup>
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '25%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '17%' }} />
+                <col style={{ width: '18%' }} />
+              </colgroup>
               <thead>
                 <tr>
-                  <th>SR No</th>
                   <th>Name</th>
                   <th>Email</th>
                   <th>Department</th>
-                  <th>Designation</th>
-                  <th>Staff Eval.<br/>Status</th>
-                  <th>Admin Eval.<br/>Status</th>
+                  <th style={{ textAlign: 'center' }}>Team Eval.</th>
+                  <th style={{ textAlign: 'center' }}>Admin Eval.</th>
                 </tr>
               </thead>
-
-              <tbody>
-                {filteredLineManagers.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: "center" }}>
-                      No line manager found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredLineManagers.map((manager, index) => (
-                    <tr
-                      key={manager.id}
-                      onClick={() => handleRowClick(manager)}
-                      className={
-                        selectedLineManager?.id === manager.id
-                          ? "selected-row"
-                          : ""
-                      }
-                      style={{ cursor: "pointer" }}
-                    >
-                      <td>{index + 1}</td>
-                      <td>{manager.first_name} {manager.last_name}</td>
-                      <td><a href={`mailto:${manager.email}`}>{manager.email}</a></td>
-                      <td>{manager.department_name || "N/A"}</td>
-                      <td>{manager.designation || "N/A"}</td>
-                      <td>
-                        {manager.evaluation_status === 'Completed' ? (
-                          <span className="status-badge completed">
-                            Completed
-                          </span>
-                        ) : (
-                          <span className="status-badge pending">
-                            Pending ({manager.pending_count || manager.total_evaluations || 0})
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        {manager.admin_evaluation_status === 'Evaluated' ? (
-                          <span className="status-badge evaluated">
-                            Evaluated
-                          </span>
-                        ) : (
-                          <span className="status-badge not-evaluated">
-                            Not Evaluated
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
             </table>
+            {/* Scrollable body */}
+            <div className="lm-tbody-scroll" style={{ maxHeight: '330px', overflowY: 'auto' }}>
+              <table className="departments-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+                <colgroup>
+                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '17%' }} />
+                  <col style={{ width: '18%' }} />
+                </colgroup>
+                <tbody>
+                  {filteredLineManagers.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: "center" }}>No line manager found</td>
+                    </tr>
+                  ) : (
+                    filteredLineManagers.map((manager) => (
+                      <tr
+                        key={manager.id}
+                        onClick={() => handleRowClick(manager)}
+                        className={selectedLineManager?.id === manager.id ? "selected-row" : ""}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <td>
+                          <div className="emp-name-cell">
+                            {manager.profile_image ? (
+                              <img src={`http://localhost:5000${manager.profile_image}`} alt={manager.first_name} className="emp-avatar" />
+                            ) : (
+                              <div className="emp-avatar emp-avatar-fallback" style={{ background: getAvatarColor(`${manager.first_name}${manager.last_name}`) }}>
+                                {manager.first_name?.[0]}{manager.last_name?.[0]}
+                              </div>
+                            )}
+                            <span className="emp-name-text">{manager.first_name} {manager.last_name}</span>
+                          </div>
+                        </td>
+                        <td><a href={`mailto:${manager.email}`}>{manager.email}</a></td>
+                        <td>
+                          {manager.department_name ? (() => {
+                            const c = getDeptBadgeColor(manager.department_name);
+                            return <span className="dept-badge" style={{ background: c.bg, color: c.text }}>{manager.department_name}</span>;
+                          })() : 'N/A'}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {manager.evaluation_status === 'Completed' ? (
+                            <span className="status-badge completed">Completed</span>
+                          ) : (
+                            <span className="status-badge pending">Pending ({manager.pending_count || manager.total_evaluations || 0})</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {manager.admin_evaluation_status === 'Evaluated' ? (
+                            <span className="status-badge evaluated">Evaluated</span>
+                          ) : (
+                            <span className="status-badge not-evaluated">Not Evaluated</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <button

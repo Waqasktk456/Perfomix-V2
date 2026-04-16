@@ -28,9 +28,9 @@ const DepartmentPerformance = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const response = await axios.get("http://localhost:5000/api/cycles", config);
       const cyclesData = Array.isArray(response.data) ? response.data : [];
-      setCycles(cyclesData);
-      if (cyclesData.length > 0) {
-        setSelectedCycleId(cyclesData[0].id);
+      setCycles(cyclesData.filter(c => c.status !== 'draft'));
+      if (cyclesData.filter(c => c.status !== 'draft').length > 0) {
+        setSelectedCycleId(cyclesData.filter(c => c.status !== 'draft')[0].id);
       } else {
         setLoading(false);
       }
@@ -128,14 +128,12 @@ const DepartmentPerformance = () => {
               <th>Teams</th>
               <th>Employees</th>
               <th>Average Score</th>
-              <th>Trend</th>
-              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {departments.length === 0 ? (
               <tr>
-                <td colSpan="7" style={{ textAlign: "center", padding: "40px" }}>
+                <td colSpan="5" style={{ textAlign: "center", padding: "40px" }}>
                   No departments found for this cycle
                 </td>
               </tr>
@@ -152,8 +150,6 @@ const DepartmentPerformance = () => {
                   <td>{dept.teamCount}</td>
                   <td>{dept.employeeCount}</td>
                   <td>{dept.averageScore}</td>
-                  <td>{dept.trend}</td>
-                  <td className="action-view">View</td>
                 </tr>
               ))
             )}
