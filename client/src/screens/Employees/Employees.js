@@ -45,6 +45,16 @@ const Employees = () => {
   const [searchValue, setSearchValue] = useState("");
   const [departments, setDepartments] = useState([]);
 
+  // PAGINATION — persist page in sessionStorage so it survives navigation
+  const ITEMS_PER_PAGE = 8;
+  const [currentPage, setCurrentPage] = useState(() => {
+    return parseInt(sessionStorage.getItem('employees_page') || '1', 10);
+  });
+  const handlePageChange = (page) => {
+    sessionStorage.setItem('employees_page', page);
+    setCurrentPage(page);
+  };
+
   // Helper function to get auth headers
   const getAuthConfig = () => {
     const token = localStorage.getItem('token');
@@ -84,7 +94,11 @@ const Employees = () => {
       const response = await axios.get('http://localhost:5000/api/employees', config);
 
       console.log('Fetched employees in employee file:', response.data);
-      setEmployees(response.data || []);
+      const raw = response.data || [];
+      // Deduplicate by id (LEFT JOIN team_members can produce duplicates)
+      const map = new Map();
+      raw.forEach(e => { if (!map.has(e.id)) map.set(e.id, e); });
+      setEmployees([...map.values()]);
     } catch (err) {
       console.error('Error fetching employees:', err);
 
@@ -133,10 +147,6 @@ const Employees = () => {
     }
   };
 
-  // PAGINATION STATE
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 8;
-
   // FILTER LOGIC
   const filteredEmployees = employees.filter(emp => {
     if (!searchValue.trim()) return true;
@@ -162,10 +172,6 @@ const Employees = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handlePageChange = (page) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
-  };
-
   if (loading) {
     return <div className="loading">Loading employees...</div>;
   }
@@ -185,7 +191,7 @@ const Employees = () => {
             {searchType === 'department' ? (
               <select
                 value={searchValue}
-                onChange={e => { setSearchValue(e.target.value); setCurrentPage(1); }}
+                onChange={e => { setSearchValue(e.target.value); handlePageChange(1); }}
                 className="search-input-field"
                 style={{ cursor: 'pointer' }}
               >
@@ -202,7 +208,7 @@ const Employees = () => {
                 className="search-input-field"
                 placeholder={searchType === 'name' ? 'Search by name...' : 'Search by designation...'}
                 value={searchValue}
-                onChange={e => { setSearchValue(e.target.value); setCurrentPage(1); }}
+                onChange={e => { setSearchValue(e.target.value); handlePageChange(1); }}
               />
             )}
           </div>
@@ -210,7 +216,7 @@ const Employees = () => {
           {/* Filter by dropdown — SECOND, narrow */}
           <select
             value={searchType}
-            onChange={e => { setSearchType(e.target.value); setSearchValue(''); setCurrentPage(1); }}
+            onChange={e => { setSearchType(e.target.value); setSearchValue(''); handlePageChange(1); }}
             style={{
               padding: '12px 14px',
               border: '2px solid #e1e8f0',
@@ -256,6 +262,7 @@ const Employees = () => {
                   <th style={{ textAlign: 'center' }}><span style={{ position: 'relative', left: '-70px' }}>Email</span></th>
                   <th>Department</th>
                   <th>Designation</th>
+                  <th>Role</th>
                   <th style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
@@ -310,8 +317,19 @@ const Employees = () => {
                         })() : 'N/A'}
                       </td>
                       <td>{emp.designation || "N/A"}</td>
+                      <td>
+                        {emp.role ? (() => {
+                          const roleStyles = {
+                            'Staff':        { bg: '#e8f5e9', color: '#2e7d32' },
+                            'Line Manager': { bg: '#e3f2fd', color: '#1565c0' },
+                            'Admin':        { bg: '#f3e8ff', color: '#6b21a8' },
+                          };
+                          const s = roleStyles[emp.role] || { bg: '#f1f5f9', color: '#475569' };
+                          return <span className="dept-badge" style={{ background: s.bg, color: s.color }}>{emp.role}</span>;
+                        })() : 'N/A'}
+                      </td>
 
-                      <td onClick={(e) => e.stopPropagation()}>
+                      <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
                         <button
                           onClick={() => handleEdit(emp)}
                           className="organization-icon-button action-btn-edit"

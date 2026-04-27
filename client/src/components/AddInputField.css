@@ -38,4 +38,39 @@
     font-size: 14px;
 }
 
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrapper--password .input-field {
+    padding-right: 40px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: calc(50% - 8px);
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.password-toggle:hover {
+    color: #3b82f6;
+}
+
+.input-error {
+    color: #ef4444;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
 

@@ -80,9 +80,8 @@ exports.getAdminOrgSummary = async (req, res) => {
         const [distribution] = await db.query(`
             SELECT 
                 CASE 
-                    WHEN overall_score >= 85 THEN 'Excellent'
-                    WHEN overall_score >= 70 THEN 'Good'
-                    WHEN overall_score >= 50 THEN 'Satisfactory'
+                    WHEN overall_score >= 80 THEN 'Excellent'
+                    WHEN overall_score >= 70 THEN 'Average'
                     ELSE 'Needs Improvement'
                 END as level,
                 COUNT(*) as count
@@ -92,17 +91,18 @@ exports.getAdminOrgSummary = async (req, res) => {
             GROUP BY level
         `, [orgId, cycle_id]);
 
-        // Department-wise Statistics
+        // Department-wise Statistics (all evaluations for completion rate)
         const [deptStats] = await db.query(`
             SELECT d.department_name as Department_name, 
-                COUNT(ev.id) as emp_count,
-                AVG(ev.overall_score) as avg_score,
-                MAX(ev.overall_score) as max_score,
-                MIN(ev.overall_score) as min_score
+                COUNT(ev.id) as total_count,
+                COUNT(CASE WHEN ev.status = 'completed' THEN 1 END) as emp_count,
+                AVG(CASE WHEN ev.status = 'completed' THEN ev.overall_score END) as avg_score,
+                MAX(CASE WHEN ev.status = 'completed' THEN ev.overall_score END) as max_score,
+                MIN(CASE WHEN ev.status = 'completed' THEN ev.overall_score END) as min_score
             FROM evaluations ev
             JOIN employees e ON ev.employee_id = e.id
             JOIN departments d ON e.department_id = d.id
-            WHERE ev.organization_id = ? AND ev.status = 'completed'
+            WHERE ev.organization_id = ?
             AND ev.cycle_team_assignment_id IN (SELECT id FROM cycle_team_assignments WHERE cycle_id = ?)
             GROUP BY d.department_name
         `, [orgId, cycle_id]);
@@ -129,7 +129,8 @@ exports.getAdminOrgSummary = async (req, res) => {
                 cycle_name: cycle.cycle_name,
                 start_date: cycle.start_date,
                 end_date: cycle.end_date,
-                generation_date: new Date()
+                generation_date: new Date(),
+                cycle_id: parseInt(cycle_id)
             },
             summary: {
                 total_employees: stats.total_evaluations,
@@ -149,6 +150,79 @@ exports.getAdminOrgSummary = async (req, res) => {
     } catch (error) {
         console.error('Admin Org Summary Error:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// NEW: Org Trend across cycles
+exports.getOrgTrend = async (req, res) => {
+    try {
+        const orgId = req.user.organizationId;
+        const [rows] = await db.query(`
+            SELECT ec.id, ec.cycle_name,
+                   AVG(ev.overall_score) as avg_score,
+                   COUNT(ev.id) as total,
+                   COUNT(CASE WHEN ev.status='completed' THEN 1 END) as completed
+            FROM evaluation_cycles ec
+            JOIN cycle_team_assignments cta ON cta.cycle_id = ec.id
+            JOIN evaluations ev ON ev.cycle_team_assignment_id = cta.id
+            WHERE ec.organization_id = ?
+            GROUP BY ec.id, ec.cycle_name
+            ORDER BY ec.created_at ASC
+        `, [orgId]);
+        res.json({ success: true, trend: rows });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// NEW: Team insights (top 3 + bottom 3)
+exports.getTeamInsights = async (req, res) => {
+    try {
+        const { cycle_id } = req.query;
+        const orgId = req.user.organizationId;
+        const [rows] = await db.query(`
+            SELECT t.team_name, d.department_name,
+                   AVG(ev.overall_score) as avg_score,
+                   COUNT(ev.id) as total,
+                   COUNT(CASE WHEN ev.status='completed' THEN 1 END) as completed
+            FROM cycle_team_assignments cta
+            JOIN teams t ON cta.team_id = t.id
+            LEFT JOIN departments d ON t.department_id = d.id
+            JOIN evaluations ev ON ev.cycle_team_assignment_id = cta.id
+            WHERE cta.cycle_id = ? AND ev.organization_id = ?
+            GROUP BY t.id, t.team_name, d.department_name
+            ORDER BY avg_score DESC
+        `, [cycle_id, orgId]);
+        const top3 = rows.slice(0, 3);
+        const bottom3 = rows.slice(-3).reverse();
+        res.json({ success: true, top3, bottom3 });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// NEW: Benchmarking
+exports.getBenchmarking = async (req, res) => {
+    try {
+        const { cycle_id } = req.query;
+        const orgId = req.user.organizationId;
+        const [rows] = await db.query(`
+            SELECT ev.overall_score
+            FROM evaluations ev
+            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            WHERE cta.cycle_id = ? AND ev.organization_id = ? AND ev.status = 'completed'
+            ORDER BY ev.overall_score DESC
+        `, [cycle_id, orgId]);
+        if (!rows.length) return res.json({ success: true, orgAvg: 0, top25Avg: 0, bottom25Avg: 0, gap: 0 });
+        const scores = rows.map(r => parseFloat(r.overall_score));
+        const orgAvg = scores.reduce((a, b) => a + b, 0) / scores.length;
+        const top25 = scores.slice(0, Math.ceil(scores.length * 0.25));
+        const bottom25 = scores.slice(-Math.ceil(scores.length * 0.25));
+        const top25Avg = top25.reduce((a, b) => a + b, 0) / top25.length;
+        const bottom25Avg = bottom25.reduce((a, b) => a + b, 0) / bottom25.length;
+        res.json({ success: true, orgAvg: orgAvg.toFixed(1), top25Avg: top25Avg.toFixed(1), bottom25Avg: bottom25Avg.toFixed(1), gap: (top25Avg - orgAvg).toFixed(1) });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
@@ -446,26 +520,25 @@ exports.getIndividualReport = async (req, res) => {
         // Fetch Evaluation with basic checks
         const [evalRows] = await db.query(`
             SELECT 
-                COALESCE(ev.overall_score, (SELECT SUM((ed.score * pmx.weightage) / 100) FROM evaluation_details ed JOIN parameter_matrices pmx ON ed.parameter_id = pmx.parameter_id WHERE ed.evaluation_id = ev.id AND pmx.matrix_id = cta.matrix_id)) as overall_score,
+                COALESCE(ev.overall_score, (SELECT SUM((ed.score * pmx.weightage) / 100) FROM evaluation_details ed JOIN parameter_matrices pmx ON ed.parameter_id = pmx.parameter_id WHERE ed.evaluation_id = ev.id AND pmx.matrix_id = COALESCE(cta.matrix_id, ec.line_manager_matrix_id))) as overall_score,
                 ev.*,
                 CONCAT(e.first_name, ' ', e.last_name) as employee_name,
                 e.designation as Designation,
                 e.user_id as employee_user_id,
                 d.department_name as Department_name,
-                t.team_name,
+                (SELECT GROUP_CONCAT(t2.team_name SEPARATOR ', ') FROM team_members tm2 JOIN teams t2 ON tm2.team_id = t2.id WHERE tm2.employee_id = e.id) as team_name,
                 ec.cycle_name,
                 ec.start_date as cycle_start,
                 ec.end_date as cycle_end,
-                mgr_e.first_name as manager_name,
+                COALESCE(mgr_e.first_name, 'N/A') as manager_name,
                 o.organization_name,
-                cta.matrix_id
+                COALESCE(cta.matrix_id, ec.line_manager_matrix_id) as matrix_id
             FROM evaluations ev
             JOIN employees e ON ev.employee_id = e.id
             LEFT JOIN departments d ON e.department_id = d.id
-            LEFT JOIN teams t ON e.team_id = t.id
-            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
-            JOIN evaluation_cycles ec ON cta.cycle_id = ec.id
-            JOIN employees mgr_e ON cta.line_manager_id = mgr_e.id
+            LEFT JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            JOIN evaluation_cycles ec ON COALESCE(cta.cycle_id, ev.cycle_id) = ec.id
+            LEFT JOIN employees mgr_e ON cta.line_manager_id = mgr_e.id
             JOIN organizations o ON ev.organization_id = o.id
             WHERE ev.id = ? AND ev.organization_id = ?
         `, [evaluation_id, orgId]);
@@ -486,7 +559,7 @@ exports.getIndividualReport = async (req, res) => {
         }
         // Line managers can view any report in their org — no restriction needed
 
-        // Fetch Parameter Details
+        // Fetch Parameter Details (handles both staff and line manager evaluations)
         const [details] = await db.query(`
             SELECT 
                 p.parameter_name,
@@ -498,8 +571,12 @@ exports.getIndividualReport = async (req, res) => {
             FROM evaluation_details ed
             JOIN parameters p ON ed.parameter_id = p.id
             JOIN evaluations ev ON ed.evaluation_id = ev.id
-            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
-            JOIN parameter_matrices pm ON p.id = pm.parameter_id AND cta.matrix_id = pm.matrix_id
+            LEFT JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            JOIN parameter_matrices pm ON p.id = pm.parameter_id 
+                AND pm.matrix_id = COALESCE(
+                    cta.matrix_id,
+                    (SELECT line_manager_matrix_id FROM evaluation_cycles WHERE id = ev.cycle_id LIMIT 1)
+                )
             WHERE ed.evaluation_id = ?
         `, [evaluation_id]);
 
@@ -591,8 +668,12 @@ exports.getIndividualReport = async (req, res) => {
             FROM evaluation_details ed
             JOIN parameters p ON ed.parameter_id = p.id
             JOIN evaluations ev ON ed.evaluation_id = ev.id
-            JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
-            JOIN parameter_matrices pm ON p.id = pm.parameter_id AND cta.matrix_id = pm.matrix_id
+            LEFT JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+            JOIN parameter_matrices pm ON p.id = pm.parameter_id 
+                AND pm.matrix_id = COALESCE(
+                    cta.matrix_id,
+                    (SELECT line_manager_matrix_id FROM evaluation_cycles WHERE id = ev.cycle_id LIMIT 1)
+                )
             WHERE ed.evaluation_id = ?
         `, [evaluation_id]);
 
@@ -628,6 +709,8 @@ exports.getIndividualReport = async (req, res) => {
                 status: evaluation.status,
                 submitted_at: evaluation.submitted_at || evaluation.updated_at,
                 manager_remarks: evaluation.comments,
+                feedback: evaluation.comments || null,
+                recommendation: evaluation.areas_for_improvement || null,
                 evaluator_name: evaluation.manager_name,
                 parameters: detailsFull,
                 previous_score: previousPerformance ? previousPerformance.overall_score : null,

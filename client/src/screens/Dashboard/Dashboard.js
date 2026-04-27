@@ -31,6 +31,20 @@ const Dashboard = () => {
   const [allCycles, setAllCycles] = useState([]);
   const [selectedCycleId, setSelectedCycleId] = useState(null);
 
+  // Restore scroll only when coming back from employee attention → report
+  useEffect(() => {
+    const fromReport = sessionStorage.getItem('dashboard_scroll_from_report');
+    if (!fromReport) return;
+    const saved = sessionStorage.getItem('dashboard_scroll');
+    sessionStorage.removeItem('dashboard_scroll_from_report');
+    sessionStorage.removeItem('dashboard_scroll');
+    if (!saved) return;
+    const container = document.querySelector('.content');
+    if (!container) return;
+    const timer = setTimeout(() => { container.scrollTop = Number(saved); }, 300);
+    return () => clearTimeout(timer);
+  }, [employeesNeedingAttention]);
+
   // Utility to filter unique employees by Employee_id
   const uniqueByEmployeeId = (arr) => {
     const seen = new Set();
@@ -59,8 +73,11 @@ const Dashboard = () => {
       
       // Automatically select the most recent cycle (first in the list)
       if (activeCycles.length > 0) {
-        setSelectedCycleId(activeCycles[0].id);
-        setCurrentCycleId(activeCycles[0].id);
+        const saved = sessionStorage.getItem('dashboard_cycle_id');
+        const savedId = saved ? Number(saved) : null;
+        const toSelect = (savedId && activeCycles.find(c => c.id === savedId)) ? savedId : activeCycles[0].id;
+        setSelectedCycleId(toSelect);
+        setCurrentCycleId(toSelect);
       }
     }).catch(err => console.log('Error fetching cycles:', err));
 
@@ -314,7 +331,7 @@ const Dashboard = () => {
           id="cycle-select"
           className="cycle-dropdown"
           value={selectedCycleId ? String(selectedCycleId) : ''}
-          onChange={(e) => setSelectedCycleId(Number(e.target.value))}
+          onChange={(e) => { const id = Number(e.target.value); setSelectedCycleId(id); sessionStorage.setItem('dashboard_cycle_id', id); }}
         >
           {allCycles.length === 0 ? (
             <option value="">No cycles available</option>
@@ -586,12 +603,17 @@ const Dashboard = () => {
                   {employeesNeedingAttention.map((emp, index) => (
                     <tr
                       key={index}
-                      onClick={() => navigate('/view-performance-report', {
-                        state: {
-                          employee: { evaluation_id: emp.evaluation_id, name: emp.name },
-                          cycleId: selectedCycleId
-                        }
-                      })}
+                      onClick={() => {
+                        const container = document.querySelector('.content');
+                        if (container) sessionStorage.setItem('dashboard_scroll', container.scrollTop);
+                        sessionStorage.setItem('dashboard_scroll_from_report', '1');
+                        navigate('/view-performance-report', {
+                          state: {
+                            employee: { evaluation_id: emp.evaluation_id, name: emp.name },
+                            cycleId: selectedCycleId
+                          }
+                        });
+                      }}
                       style={{
                         borderBottom: '1px solid #f0f0f0',
                         backgroundColor: index % 2 === 0 ? '#fafafa' : 'white',
@@ -611,7 +633,7 @@ const Dashboard = () => {
               <div style={{ textAlign: 'center' }}>
                 <button
                   onClick={() => navigate('/employee-performance')}
-                  style={{ padding: '8px 16px', backgroundColor: '#ff6b6b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
+                  style={{ padding: '8px 16px', backgroundColor: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
                 >
                   View All
                 </button>

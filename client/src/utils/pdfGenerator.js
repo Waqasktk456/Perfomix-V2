@@ -268,25 +268,49 @@ export const generateProfessionalPDF = async (data, type) => {
         } else if (type === 'individual-assessment') {
             const { employee_details, cycle_details, performance, ai, benchmarking, verdict } = data;
             const overallScore = parseFloat(performance?.overall_score || 0);
+            const isLineManager = !employee_details?.team; // no team = line manager report
             const params = performance?.parameters || [];
+
+            // Helper: get display percentage for a parameter
+            // For staff: rating*20. For LM or when no rating: use score directly (already %)
+            const getParamPct = (p) => {
+                const r = parseFloat(p.rating || 0);
+                const s = parseFloat(p.score || 0);
+                return r > 0 ? r * 20 : s;
+            };
+
             const bench = benchmarking || {};
             const aiFlags = ai?.flags || [];
-            const inconsistencies = aiFlags.filter(f => f.type === 'INCONSISTENCY');
-            const weakFlags = aiFlags.filter(f => f.type === 'WEAK_FEEDBACK' || f.type === 'MISSING_FEEDBACK');
-            const sortedParams = [...params].sort((a, b) => parseFloat(b.score) - parseFloat(a.score));
+            // Sort by pct descending
+            const sortedParams = [...params].map(p => ({ ...p, pct: getParamPct(p) }))
+                .sort((a, b) => b.pct - a.pct);
             const top2 = sortedParams.slice(0, 2);
             const bottom2 = sortedParams.slice(-2).reverse();
+
+            // For LM: weakest = pct < 70, strongest = top 1
+            const lmWeakest = sortedParams.filter(p => p.pct < 70);
+            const lmStrongest = sortedParams[0];
+
+            // Overall weighted score for breakdown table
+            const computedWeighted = params.reduce((sum, p) => {
+                const pct = getParamPct(p);
+                return sum + (pct * parseFloat(p.weightage || 0) / 100);
+            }, 0);
+            const displayOverall = overallScore > 0 ? overallScore : computedWeighted;
+
             const hasTrend = performance?.previous_score != null;
             const prevScore = parseFloat(performance?.previous_score || 0);
-            const trendDiff = hasTrend ? (overallScore - prevScore).toFixed(1) : null;
+            const trendDiff = hasTrend ? (displayOverall - prevScore).toFixed(1) : null;
             const trendUp = parseFloat(trendDiff) >= 0;
             const vLabel = verdict?.label || 'Meets Expectations';
             const cycleStart = cycle_details?.start ? new Date(cycle_details.start).toLocaleDateString('en-US',{month:'long',day:'2-digit',year:'numeric'}) : 'N/A';
             const cycleEnd = cycle_details?.end ? new Date(cycle_details.end).toLocaleDateString('en-US',{month:'long',day:'2-digit',year:'numeric'}) : 'N/A';
-            const recActions = bottom2.map(p => `Targeted development in ${p.parameter_name}`);
-            if (overallScore >= 75) recActions.unshift('Consider for leadership development program');
 
-            // Score to percentage: rating 1-5 maps to 20-100%
+            // Recommendations: for LM use params < 70%, for staff use bottom2
+            const recParams = isLineManager ? lmWeakest : bottom2;
+            const recActions = recParams.map(p => `Targeted development in ${p.parameter_name}`);
+            if (displayOverall >= 75) recActions.unshift('Consider for leadership development program');
+
             const ratingToScore = (r) => r ? (parseFloat(r) * 20).toFixed(0) + '%' : '-';
 
             html = `
@@ -294,6 +318,7 @@ export const generateProfessionalPDF = async (data, type) => {
 
               <!-- TITLE -->
               <div data-section style="margin-bottom:30px;padding:0 55px;background:white;">
+                <div style="height:20px;"></div>
                 <h1 style="font-size:28px;font-weight:900;color:#000000;margin:0 0 4px;line-height:1.2;text-transform:uppercase;">EMPLOYEE PERFORMANCE MANAGEMENT SYSTEM (EPMS)</h1>
                 <div style="border-top:3px solid #000000;margin-top:16px;padding-top:12px;">
                   <span style="font-size:14px;font-weight:700;color:#000000;text-transform:uppercase;letter-spacing:1px;">FINAL PERFORMANCE REPORT</span>
@@ -307,22 +332,65 @@ export const generateProfessionalPDF = async (data, type) => {
                   <tr><td style="padding:5px 0;color:#000000;width:200px;"><strong>Employee Name:</strong></td><td style="padding:5px 0;color:#000000;">${employee_details?.name || 'N/A'}</td></tr>
                   <tr><td style="padding:5px 0;color:#000000;"><strong>Role:</strong></td><td style="padding:5px 0;color:#000000;">${employee_details?.role || 'N/A'}</td></tr>
                   <tr><td style="padding:5px 0;color:#000000;"><strong>Department:</strong></td><td style="padding:5px 0;color:#000000;">${employee_details?.department || 'N/A'}</td></tr>
-                  <tr><td style="padding:5px 0;color:#000000;"><strong>Team:</strong></td><td style="padding:5px 0;color:#000000;">${employee_details?.team || 'N/A'}</td></tr>
+                  ${!isLineManager ? `<tr><td style="padding:5px 0;color:#000000;"><strong>Team:</strong></td><td style="padding:5px 0;color:#000000;">${employee_details?.team || 'N/A'}</td></tr>` : ''}
                 </table>
                 <div style="height:10px;"></div>
                 <table style="width:100%;font-size:14px;border-collapse:collapse;">
                   <tr><td style="padding:5px 0;color:#000000;width:200px;"><strong>Performance Cycle:</strong></td><td style="padding:5px 0;color:#000000;">${cycle_details?.name || 'N/A'}</td></tr>
                   <tr><td style="padding:5px 0;color:#000000;"><strong>Cycle Period:</strong></td><td style="padding:5px 0;color:#000000;">${cycleStart} – ${cycleEnd}</td></tr>
-                  <tr><td style="padding:5px 0;color:#000000;"><strong>Evaluator:</strong></td><td style="padding:5px 0;color:#000000;">${performance?.evaluator_name || 'N/A'}</td></tr>
+                  <tr><td style="padding:5px 0;color:#000000;"><strong>Evaluator:</strong></td><td style="padding:5px 0;color:#000000;">${isLineManager ? 'Admin' : (performance?.evaluator_name || 'N/A')}</td></tr>
                 </table>
                 <div style="height:14px;"></div>
-                <div style="font-size:15px;color:#000000;"><strong>Overall Performance: ${overallScore.toFixed(1)}% (${performance?.rating_name || vLabel})</strong></div>
-                ${bench.percentile_rank != null ? `<div style="font-size:14px;margin-top:6px;color:#000000;">You are in the <strong>Top ${100 - bench.percentile_rank}%</strong> of employees company-wide.</div>` : ''}
-                ${hasTrend ? `<div style="font-size:14px;margin-top:5px;color:#000000;"><strong>Performance ${trendUp ? 'improved' : 'declined'} by ${trendUp ? '+' : ''}${trendDiff}%</strong> from the previous cycle. ${trendUp ? '↑' : '↓'}</div>` : ''}
+                <!-- Overall Performance Snapshot -->
+                <div style="margin-top:20px;padding:20px;background:linear-gradient(135deg,#f8fafc 0%,#e2e8f0 100%);border-radius:12px;">
+                  <div style="font-size:13px;font-weight:700;color:#000000;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;text-align:center;">Overall Performance Snapshot</div>
+                  <div style="display:flex;align-items:center;justify-content:space-around;gap:24px;flex-wrap:wrap;">
+
+                    <!-- Big Score -->
+                    <div style="text-align:center;">
+                      <div style="font-size:60px;font-weight:900;color:${displayOverall >= 80 ? '#10b981' : displayOverall >= 70 ? '#f59e0b' : '#ef4444'};line-height:1;">${displayOverall.toFixed(1)}%</div>
+                      <div style="font-size:11px;color:#64748b;margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Overall Score</div>
+                    </div>
+
+                    <!-- Circular Gauge -->
+                    <div style="position:relative;width:130px;height:130px;flex-shrink:0;">
+                      <svg width="130" height="130" viewBox="0 0 130 130" style="transform:rotate(-90deg);">
+                        <circle cx="65" cy="65" r="52" fill="none" stroke="#e2e8f0" stroke-width="14"/>
+                        <circle cx="65" cy="65" r="52" fill="none"
+                          stroke="${displayOverall >= 80 ? '#10b981' : displayOverall >= 70 ? '#f59e0b' : '#ef4444'}"
+                          stroke-width="14"
+                          stroke-dasharray="${(displayOverall / 100 * 327).toFixed(1)} 327"
+                          stroke-linecap="round"/>
+                      </svg>
+                      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
+                        <div style="font-size:22px;font-weight:800;color:${displayOverall >= 80 ? '#10b981' : displayOverall >= 70 ? '#f59e0b' : '#ef4444'};">${displayOverall.toFixed(0)}</div>
+                        <div style="font-size:10px;color:#64748b;">/ 100</div>
+                      </div>
+                    </div>
+
+                    <!-- Badge + Bar -->
+                    <div style="flex:1;min-width:200px;max-width:320px;">
+                      <div style="display:inline-block;padding:8px 24px;border-radius:50px;background:${displayOverall >= 80 ? '#d1fae5' : displayOverall >= 70 ? '#fef3c7' : '#fee2e2'};color:${displayOverall >= 80 ? '#065f46' : displayOverall >= 70 ? '#92400e' : '#991b1b'};font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">
+                        ${displayOverall >= 80 ? 'Excellent' : displayOverall >= 70 ? 'Average' : 'Needs Improvement'}
+                      </div>
+                      <div style="background:#e2e8f0;border-radius:8px;height:18px;overflow:hidden;margin-bottom:6px;">
+                        <div style="width:${displayOverall}%;height:100%;background:${displayOverall >= 80 ? '#10b981' : displayOverall >= 70 ? '#f59e0b' : '#ef4444'};border-radius:8px;"></div>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:10px;"><span>0%</span><span>50%</span><span>100%</span></div>
+                      <div style="display:flex;gap:10px;font-size:10px;flex-wrap:wrap;">
+                        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:3px;"></span><span style="color:#64748b;">Excellent (≥80)</span></span>
+                        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:3px;"></span><span style="color:#64748b;">Average (70–79)</span></span>
+                        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;margin-right:3px;"></span><span style="color:#64748b;">Needs Improvement (&lt;70)</span></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                ${hasTrend ? `<div style="font-size:13px;margin-top:10px;color:#000000;padding:0 4px;"><strong>Performance ${trendUp ? 'improved' : 'declined'} by ${trendUp ? '+' : ''}${trendDiff}%</strong> from the previous cycle. ${trendUp ? '↑' : '↓'}</div>` : ''}
               </div>
 
               <!-- SECTION 2: PERFORMANCE BREAKDOWN -->
-              <div data-section style="margin-bottom:32px;padding:0 55px;background:white;">
+              <div data-section style="margin-bottom:32px;padding:0 55px;background:white;margin-top:120px;">
+                <div style="height:5px;"></div>
                 <h2 style="font-size:20px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:16px;">2. Performance Breakdown</h2>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <thead>
@@ -331,76 +399,47 @@ export const generateProfessionalPDF = async (data, type) => {
                       <th style="padding:10px 8px;text-align:center;font-weight:700;color:#000000;border:1px solid #cccccc;">Weight</th>
                       <th style="padding:10px 8px;text-align:center;font-weight:700;color:#000000;border:1px solid #cccccc;">Rating (1–5)</th>
                       <th style="padding:10px 8px;text-align:center;font-weight:700;color:#000000;border:1px solid #cccccc;">Score (%)</th>
-                      <th style="padding:10px 8px;text-align:left;font-weight:700;color:#000000;border:1px solid #cccccc;">Feedback</th>
-                      <th style="padding:10px 8px;text-align:left;font-weight:700;color:#000000;border:1px solid #cccccc;">Recommendation</th>
                     </tr>
                   </thead>
                   <tbody>
                     ${params.map((p, i) => {
-                        const rating = parseFloat(p.rating || 0);
-                        const scoreFromRating = rating > 0 ? (rating * 20).toFixed(0) : parseFloat(p.score || 0).toFixed(0);
+                        const pct = getParamPct(p);
                         const rowBg = i % 2 === 0 ? '#ffffff' : '#f9f9f9';
                         return `<tr style="background:${rowBg};">
                           <td style="padding:9px 8px;font-weight:600;color:#000000;border:1px solid #dddddd;">${p.parameter_name}</td>
                           <td style="padding:9px 8px;text-align:center;color:#000000;border:1px solid #dddddd;">${p.weightage}%</td>
                           <td style="padding:9px 8px;text-align:center;font-weight:700;color:#000000;border:1px solid #dddddd;">${p.rating || '-'} / 5</td>
-                          <td style="padding:9px 8px;text-align:center;font-weight:700;color:#000000;border:1px solid #dddddd;">${scoreFromRating}%</td>
-                          <td style="padding:9px 8px;color:#000000;font-size:12px;line-height:1.5;border:1px solid #dddddd;">${p.feedback || p.parameter_remarks || '—'}</td>
-                          <td style="padding:9px 8px;color:#000000;font-size:12px;line-height:1.5;border:1px solid #dddddd;">${p.recommendation || '—'}</td>
+                          <td style="padding:9px 8px;text-align:center;font-weight:700;color:#000000;border:1px solid #dddddd;">${pct.toFixed(0)}%</td>
                         </tr>`;
                     }).join('')}
                     <tr style="background:#f0f0f0;font-weight:700;">
                       <td colspan="3" style="padding:10px 8px;text-align:right;color:#000000;border:1px solid #cccccc;font-size:14px;">OVERALL WEIGHTED SCORE:</td>
-                      <td style="padding:10px 8px;text-align:center;color:#000000;border:1px solid #cccccc;font-size:15px;font-weight:900;">${overallScore.toFixed(1)}%</td>
-                      <td colspan="2" style="border:1px solid #cccccc;"></td>
+                      <td style="padding:10px 8px;text-align:center;color:#000000;border:1px solid #cccccc;font-size:15px;font-weight:900;">${displayOverall.toFixed(1)}%</td>
                     </tr>
                   </tbody>
                 </table>
-                <div style="font-size:12px;color:#000000;margin-top:8px;"><strong>Note:</strong> Score (%) = Rating × 20. Rating 5 = 100%, Rating 4 = 80%, Rating 3 = 60%, Rating 2 = 40%, Rating 1 = 20%</div>
               </div>
 
-              <!-- SECTION 3: PERFORMANCE VISUALIZATION -->
-              <div data-section style="margin-bottom:32px;padding:0 55px;background:white;">
-                <h2 style="font-size:20px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:16px;">3. Performance Visualization</h2>
-                <div style="font-size:14px;font-weight:700;color:#000000;margin-bottom:12px;">A. Parameter Performance</div>
-                ${sortedParams.map(p => {
-                    const rating = parseFloat(p.rating || 0);
-                    const pct = rating > 0 ? rating * 20 : Math.min(100, parseFloat(p.score || 0));
-                    const barW = Math.round(pct * 2.8);
-                    return `<div style="display:flex;align-items:center;margin-bottom:8px;font-size:13px;">
-                      <div style="width:220px;color:#000000;font-weight:500;">${p.parameter_name}:</div>
-                      <div style="background:#333333;height:16px;width:${barW}px;border-radius:2px;margin-right:10px;min-width:4px;"></div>
-                      <strong style="color:#000000;">${pct.toFixed(0)}%</strong>
-                    </div>`;
-                }).join('')}
-                <div style="font-size:13px;color:#000000;margin-top:12px;"><strong>Insight:</strong> ${top2[0] ? `Strong ${top2[0].parameter_name} performance` : 'Strong overall performance'}. ${bottom2[0] ? `${bottom2[0].parameter_name} is the key area for further development.` : ''}</div>
-
-                ${hasTrend ? `
-                <div style="margin-top:20px;">
-                  <div style="font-size:14px;font-weight:700;color:#000000;margin-bottom:10px;">B. Trend Across Cycles</div>
-                  <div style="display:flex;align-items:center;gap:30px;background:#f5f5f5;border-radius:6px;padding:16px;border:1px solid #dddddd;">
-                    <div style="text-align:center;">
-                      <div style="font-size:12px;color:#000000;">Previous Cycle</div>
-                      <div style="font-size:24px;font-weight:800;color:#000000;">${prevScore.toFixed(1)}%</div>
-                      <div style="font-size:11px;color:#555555;">${performance.previous_cycle || ''}</div>
-                    </div>
-                    <div style="flex:1;text-align:center;">
-                      <div style="font-size:32px;font-weight:900;color:#000000;">${trendUp ? '↑' : '↓'} ${Math.abs(trendDiff)}%</div>
-                      <div style="font-size:12px;color:#000000;">${trendUp ? 'Improvement' : 'Decline'} from last cycle</div>
-                    </div>
-                    <div style="text-align:center;">
-                      <div style="font-size:12px;color:#000000;">Current Cycle</div>
-                      <div style="font-size:24px;font-weight:800;color:#000000;">${overallScore.toFixed(1)}%</div>
-                      <div style="font-size:11px;color:#555555;">${cycle_details?.name || ''}</div>
-                    </div>
+              <!-- SECTION 3: FEEDBACK & RECOMMENDATION -->
+              ${(performance?.feedback || performance?.recommendation) ? `
+              <div data-section style="margin-bottom:32px;padding:0 55px;background:white;margin-top:120px;">
+                <div style="height:5px;"></div>
+                <h2 style="font-size:20px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:16px;">3. Feedback &amp; Recommendation</h2>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                  <div style="border:1px solid #cccccc;border-radius:8px;overflow:hidden;">
+                    <div style="background:#003f88;color:#ffffff;padding:10px 14px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Feedback</div>
+                    <div style="padding:14px;font-size:13px;color:#000000;line-height:1.7;min-height:80px;">${performance?.feedback || '<span style="color:#999;">No feedback provided.</span>'}</div>
                   </div>
-                  <div style="font-size:13px;color:#000000;margin-top:8px;"><strong>Insight:</strong> ${trendUp ? 'Consistent upward growth trend.' : 'Performance declined compared to previous cycle.'}</div>
-                </div>` : ''}
-              </div>
+                  <div style="border:1px solid #cccccc;border-radius:8px;overflow:hidden;">
+                    <div style="background:#003f88;color:#ffffff;padding:10px 14px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Recommendation</div>
+                    <div style="padding:14px;font-size:13px;color:#000000;line-height:1.7;min-height:80px;">${performance?.recommendation || '<span style="color:#999;">No recommendation provided.</span>'}</div>
+                  </div>
+                </div>
+              </div>` : ''}
 
               <!-- SECTION 4: BENCHMARK COMPARISON -->
               ${(bench.team_average != null || bench.dept_average != null || bench.org_average != null) ? `
-              <div data-section style="margin-bottom:32px;padding:0 55px;background:white;">
+              <div data-section style="margin-bottom:32px;padding:0 55px;background:white;margin-top:120px;">
                 <h2 style="font-size:20px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:16px;">4. Benchmark Comparison</h2>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <thead>
@@ -432,44 +471,110 @@ export const generateProfessionalPDF = async (data, type) => {
                     </tr>` : ''}
                   </tbody>
                 </table>
-                <div style="margin-top:12px;font-size:13px;color:#000000;">
-                  <strong>Key Insights:</strong>
-                  <ul style="margin:6px 0 0;padding-left:20px;line-height:1.9;color:#000000;">
-                    ${bench.team_average != null ? `<li>You performed <strong>${Math.abs((overallScore - bench.team_average).toFixed(1))}% ${overallScore >= bench.team_average ? 'above' : 'below'}</strong> your team average.</li>` : ''}
-                    ${bench.percentile_rank != null ? `<li>You are in the <strong>Top ${100 - bench.percentile_rank}%</strong> percentile rank company-wide.</li>` : ''}
-                  </ul>
-                </div>
               </div>` : ''}
 
-              <!-- SECTION 5: STRENGTHS & AREAS FOR IMPROVEMENT -->
-              <div data-section style="margin-bottom:32px;padding:0 55px;background:white;">
-                <h2 style="font-size:20px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:16px;">5. Top Strengths & Areas for Improvement</h2>
+              <!-- SECTION 5: PERFORMANCE VISUALIZATION -->
+              <div data-section style="margin-bottom:32px;padding:0 55px;background:white;margin-top:120px;">
+                <div style="height:5px;"></div>
+                <h2 style="font-size:20px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:16px;">5. Performance Visualization</h2>
+
+                <!-- Insight Summary -->
+                <div style="display:flex;gap:16px;margin-bottom:20px;">
+                  <div style="flex:1;background:#fee2e2;border-left:4px solid #ef4444;padding:10px 14px;border-radius:6px;">
+                    <div style="font-size:11px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">⚠ Weakest Area</div>
+                    ${isLineManager
+                      ? (lmWeakest.length > 0
+                          ? `<div style="font-size:14px;font-weight:700;color:#000000;">${lmWeakest[lmWeakest.length-1].parameter_name}</div><div style="font-size:13px;color:#555555;">${lmWeakest[lmWeakest.length-1].pct.toFixed(0)}%</div>`
+                          : `<div style="font-size:13px;color:#065f46;font-weight:600;">All parameters performing well</div>`)
+                      : `<div style="font-size:14px;font-weight:700;color:#000000;">${bottom2[0]?.parameter_name || '—'}</div><div style="font-size:13px;color:#555555;">${bottom2[0] ? bottom2[0].pct.toFixed(0) : '—'}%</div>`
+                    }
+                  </div>
+                  <div style="flex:1;background:#d1fae5;border-left:4px solid #10b981;padding:10px 14px;border-radius:6px;">
+                    <div style="font-size:11px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">★ Strongest Area</div>
+                    <div style="font-size:14px;font-weight:700;color:#000000;">${(isLineManager ? lmStrongest : top2[0])?.parameter_name || '—'}</div>
+                    <div style="font-size:13px;color:#555555;">${(isLineManager ? lmStrongest : top2[0]) ? (isLineManager ? lmStrongest : top2[0]).pct.toFixed(0) : '—'}%</div>
+                  </div>
+                </div>
+
+                <!-- Bar Chart: sorted lowest to highest -->
+                ${(() => {
+                  const scored = params.map(p => ({ ...p, pct: getParamPct(p) }))
+                    .sort((a, b) => a.pct - b.pct);
+                  const minPct = scored[0]?.pct ?? 0;
+                  const maxPct = scored[scored.length - 1]?.pct ?? 0;
+                  const barAreaW = 380;
+
+                  return `<div style="background:#fafafa;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;">
+                    ${scored.map((p, i) => {
+                      const isMin = p.pct === minPct;
+                      const isMax = p.pct === maxPct;
+                      // Color by score threshold, not just min/max
+                      const barColor = p.pct < 70 ? '#ef4444' : p.pct >= 80 ? '#10b981' : '#f59e0b';
+                      const name = p.parameter_name.length > 22 ? p.parameter_name.substring(0, 22) + '…' : p.parameter_name;
+                      return `<div style="display:flex;align-items:center;margin-bottom:10px;">
+                        <div style="width:180px;font-size:12px;color:#000000;font-weight:${isMin||isMax?'700':'400'};padding-right:10px;text-align:right;flex-shrink:0;">${name}</div>
+                        <div style="flex:1;display:flex;align-items:center;gap:8px;">
+                          <div style="background:#e2e8f0;border-radius:4px;height:22px;flex:1;">
+                            <div style="background:${barColor};height:100%;width:${p.pct}%;border-radius:4px;min-width:4px;"></div>
+                          </div>
+                          <div style="font-size:12px;font-weight:700;color:${barColor};width:38px;text-align:left;">${p.pct.toFixed(0)}%</div>
+                        </div>
+                      </div>`;
+                    }).join('')}
+                    <div style="display:flex;margin-left:180px;padding-top:4px;border-top:1px solid #e2e8f0;">
+                      <div style="flex:1;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;padding:0 46px 0 0;">
+                        <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;justify-content:center;">
+                      <span><span style="display:inline-block;width:10px;height:10px;background:#10b981;border-radius:2px;margin-right:4px;"></span>≥80%</span>
+                      <span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin-right:4px;"></span>70–79%</span>
+                      <span><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px;margin-right:4px;"></span>&lt;70%</span>
+                    </div>
+                  </div>`;
+                })()}
+                })()}
+
+                ${hasTrend ? `
+                <div style="margin-top:20px;">
+                  <div style="font-size:14px;font-weight:700;color:#000000;margin-bottom:10px;">Trend Across Cycles</div>
+                  <div style="display:flex;align-items:center;gap:30px;background:#f5f5f5;border-radius:6px;padding:16px;border:1px solid #dddddd;">
+                    <div style="text-align:center;">
+                      <div style="font-size:12px;color:#000000;">Previous Cycle</div>
+                      <div style="font-size:24px;font-weight:800;color:#000000;">${prevScore.toFixed(1)}%</div>
+                      <div style="font-size:11px;color:#555555;">${performance.previous_cycle || ''}</div>
+                    </div>
+                    <div style="flex:1;text-align:center;">
+                      <div style="font-size:32px;font-weight:900;color:#000000;">${trendUp ? '↑' : '↓'} ${Math.abs(trendDiff)}%</div>
+                      <div style="font-size:12px;color:#000000;">${trendUp ? 'Improvement' : 'Decline'} from last cycle</div>
+                    </div>
+                    <div style="text-align:center;">
+                      <div style="font-size:12px;color:#000000;">Current Cycle</div>
+                      <div style="font-size:24px;font-weight:800;color:#000000;">${displayOverall.toFixed(1)}%</div>
+                      <div style="font-size:11px;color:#555555;">${cycle_details?.name || ''}</div>
+                    </div>
+                  </div>
+                </div>` : ''}
+              </div>
+
+              <!-- SECTION 6: STRENGTHS & AREAS FOR IMPROVEMENT -->
+              <div data-section style="margin-bottom:32px;padding:0 55px;background:white;margin-top:120px;">
+                <div style="height:5px;"></div>
+                <h2 style="font-size:20px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:16px;">6. Top Strengths & Areas for Improvement</h2>
                 <div style="font-size:14px;font-weight:700;color:#000000;margin-bottom:8px;">Strengths:</div>
                 <ul style="margin:0 0 16px;padding-left:24px;font-size:14px;line-height:2;color:#000000;">
-                  ${top2.map(p => {
-                      const r = parseFloat(p.rating || 0);
-                      const sc = r > 0 ? (r * 20).toFixed(0) : parseFloat(p.score || 0).toFixed(0);
-                      return `<li><strong>${p.parameter_name}</strong> — Rating: ${p.rating || '-'}/5 (${sc}%)</li>`;
+                  ${(isLineManager ? [lmStrongest].filter(Boolean) : top2).map(p => {
+                      return `<li><strong>${p.parameter_name}</strong> — ${p.pct.toFixed(0)}%</li>`;
                   }).join('')}
                 </ul>
                 <div style="font-size:14px;font-weight:700;color:#000000;margin-bottom:8px;">Needs Improvement:</div>
                 <ul style="margin:0;padding-left:24px;font-size:14px;line-height:2;color:#000000;">
-                  ${bottom2.map(p => {
-                      const r = parseFloat(p.rating || 0);
-                      const sc = r > 0 ? (r * 20).toFixed(0) : parseFloat(p.score || 0).toFixed(0);
-                      return `<li><strong>${p.parameter_name}</strong> — Rating: ${p.rating || '-'}/5 (${sc}%)</li>`;
-                  }).join('')}
-                </ul>
-              </div>
-
-              <!-- SECTION 6: FINAL RECOMMENDATION -->
-              <div data-section style="margin-bottom:32px;padding:0 55px;background:white;">
-                <h2 style="font-size:20px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:16px;">6. Final Recommendation</h2>
-                <div style="font-size:16px;font-weight:800;color:#000000;margin-bottom:6px;">${vLabel}</div>
-                ${overallScore >= 75 ? `<div style="font-size:14px;font-weight:700;color:#000000;margin-bottom:10px;">High-Potential Employee</div>` : ''}
-                <div style="font-size:14px;color:#000000;margin-bottom:10px;">Recommended actions:</div>
-                <ul style="margin:0;padding-left:24px;font-size:14px;line-height:2;color:#000000;">
-                  ${recActions.map(a => `<li>${a}</li>`).join('')}
+                  ${isLineManager
+                    ? (lmWeakest.length > 0
+                        ? lmWeakest.map(p => `<li><strong>${p.parameter_name}</strong> — ${p.pct.toFixed(0)}%</li>`).join('')
+                        : '<li>All parameters are performing well (≥70%)</li>')
+                    : bottom2.map(p => `<li><strong>${p.parameter_name}</strong> — ${p.pct.toFixed(0)}%</li>`).join('')
+                  }
                 </ul>
               </div>
 
@@ -477,7 +582,7 @@ export const generateProfessionalPDF = async (data, type) => {
               <div data-section style="margin-bottom:32px;padding:0 55px;background:white;">
                 <h2 style="font-size:20px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:16px;">7. Evaluation Metadata</h2>
                 <table style="width:100%;font-size:14px;border-collapse:collapse;">
-                  <tr><td style="padding:6px 0;color:#000000;width:240px;"><strong>Evaluated by:</strong></td><td style="padding:6px 0;color:#000000;">${performance?.evaluator_name || 'N/A'}</td></tr>
+                  <tr><td style="padding:6px 0;color:#000000;width:240px;"><strong>Evaluated by:</strong></td><td style="padding:6px 0;color:#000000;">${isLineManager ? 'Admin' : (performance?.evaluator_name || 'N/A')}</td></tr>
                   <tr><td style="padding:6px 0;color:#000000;"><strong>Evaluation Date:</strong></td><td style="padding:6px 0;color:#000000;">${performance?.submitted_at ? new Date(performance.submitted_at).toLocaleDateString('en-US',{month:'long',day:'2-digit',year:'numeric'}) : 'N/A'}</td></tr>
                   <tr><td style="padding:6px 0;color:#000000;"><strong>Evaluation Cycle:</strong></td><td style="padding:6px 0;color:#000000;">${cycle_details?.name || 'N/A'}</td></tr>
                   <tr><td style="padding:6px 0;color:#000000;"><strong>Cycle Period:</strong></td><td style="padding:6px 0;color:#000000;">${cycleStart} – ${cycleEnd}</td></tr>
@@ -521,6 +626,7 @@ export const generateProfessionalPDF = async (data, type) => {
             <div style="font-family:Arial,sans-serif;color:#000000;max-width:820px;margin:0 auto;background:white;padding:50px 55px;font-size:14px;line-height:1.6;">
 
               <div data-section style="margin-bottom:30px;padding:0;background:white;">
+                <div style="height:20px;"></div>
                 <h1 style="font-size:26px;font-weight:900;color:#000000;margin:0 0 4px;text-transform:uppercase;">TEAM PERFORMANCE REPORT</h1>
                 <div style="border-top:3px solid #000000;margin-top:14px;padding-top:10px;">
                   <span style="font-size:13px;font-weight:700;color:#000000;text-transform:uppercase;letter-spacing:1px;">${team_info?.cycle_name || ''} — Final Report</span>
@@ -543,7 +649,8 @@ export const generateProfessionalPDF = async (data, type) => {
                 ${summary?.team_rank ? `<div style="font-size:14px;margin-top:4px;">Team Rank: <strong>${summary.team_rank}${summary.team_rank===1?'st':summary.team_rank===2?'nd':summary.team_rank===3?'rd':'th'} out of ${summary.total_teams} teams</strong></div>` : ''}
               </div>
 
-              <div data-section style="margin-bottom:30px;padding:0;background:white;">
+              <div data-section style="margin-bottom:30px;padding:0;background:white;margin-top:120px;">
+                <div style="height:10px;"></div>
                 <h2 style="font-size:18px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:14px;">2. Team KPI Cards</h2>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <thead><tr style="background:#f0f0f0;border-bottom:2px solid #999;"><th style="padding:10px;text-align:left;border:1px solid #ccc;">Metric</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Value</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Status</th></tr></thead>
@@ -556,7 +663,8 @@ export const generateProfessionalPDF = async (data, type) => {
                 </table>
               </div>
 
-              <div data-section style="margin-bottom:30px;padding:0;background:white;">
+              <div data-section style="margin-bottom:30px;padding:0;background:white;margin-top:120px;">
+                <div style="height:10px;"></div>
                 <h2 style="font-size:18px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:14px;">3. Team Performance Distribution</h2>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <thead><tr style="background:#f0f0f0;border-bottom:2px solid #999;"><th style="padding:10px;text-align:left;border:1px solid #ccc;">Performance Level</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Employees</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Percentage</th><th style="padding:10px;text-align:left;border:1px solid #ccc;">Visual</th></tr></thead>
@@ -571,7 +679,8 @@ export const generateProfessionalPDF = async (data, type) => {
               </div>
 
               ${params.length > 0 ? `
-              <div data-section style="margin-bottom:30px;padding:0;background:white;">
+              <div data-section style="margin-bottom:30px;padding:0;background:white;margin-top:120px;">
+                <div style="height:10px;"></div>
                 <h2 style="font-size:18px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:14px;">4. Parameter-Level Team Analysis</h2>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <thead><tr style="background:#f0f0f0;border-bottom:2px solid #999;"><th style="padding:10px;text-align:left;border:1px solid #ccc;">Parameter</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Team Avg</th><th style="padding:10px;text-align:left;border:1px solid #ccc;">Visual</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Insight</th></tr></thead>
@@ -582,7 +691,8 @@ export const generateProfessionalPDF = async (data, type) => {
                 <div style="font-size:13px;margin-top:8px;"><strong>Key Insight:</strong> ${strongParam?`Strong Area: ${strongParam.name} (${strongParam.avg_score}%)`:''}${weakParam&&weakParam!==strongParam?` | Weak Area: ${weakParam.name} (${weakParam.avg_score}%) needs focus.`:''}</div>
               </div>` : ''}
 
-              <div data-section style="margin-bottom:30px;padding:0;background:white;">
+              <div data-section style="margin-bottom:30px;padding:0;background:white;margin-top:120px;">
+                <div style="height:10px;"></div>
                 <h2 style="font-size:18px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:14px;">5. Top Performers & Employees Needing Attention</h2>
                 <div style="display:flex;gap:20px;">
                   <div style="flex:1;">
@@ -597,7 +707,8 @@ export const generateProfessionalPDF = async (data, type) => {
               </div>
 
               ${trend ? `
-              <div data-section style="margin-bottom:30px;padding:0;background:white;">
+              <div data-section style="margin-bottom:30px;padding:0;background:white;margin-top:120px;">
+                <div style="height:10px;"></div>
                 <h2 style="font-size:18px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:14px;">6. Trend Across Cycles</h2>
                 <div style="display:flex;align-items:center;gap:30px;background:#f5f5f5;border-radius:6px;padding:16px;border:1px solid #ddd;">
                   <div style="text-align:center;"><div style="font-size:12px;color:#555;">Previous Cycle</div><div style="font-size:24px;font-weight:800;">${trend.previous_score}%</div><div style="font-size:11px;color:#777;">${trend.previous_cycle}</div></div>
@@ -608,7 +719,8 @@ export const generateProfessionalPDF = async (data, type) => {
               </div>` : ''}
 
               ${(bench.dept_avg||bench.org_avg) ? `
-              <div data-section style="margin-bottom:30px;padding:0;background:white;">
+              <div data-section style="margin-bottom:30px;padding:0;background:white;margin-top:120px;">
+                <div style="height:10px;"></div>
                 <h2 style="font-size:18px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:14px;">7. Benchmark Comparison</h2>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <thead><tr style="background:#f0f0f0;border-bottom:2px solid #999;"><th style="padding:10px;text-align:left;border:1px solid #ccc;">Benchmark</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Score</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Difference vs Team</th></tr></thead>
@@ -620,7 +732,8 @@ export const generateProfessionalPDF = async (data, type) => {
                 </table>
               </div>` : ''}
 
-              <div data-section style="margin-bottom:30px;padding:0;background:white;">
+              <div data-section style="margin-bottom:30px;padding:0;background:white;margin-top:120px;">
+                <div style="height:10px;"></div>
                 <h2 style="font-size:18px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:14px;">8. Evaluation Health & Workload</h2>
                 <ul style="font-size:14px;line-height:2;margin:0;padding-left:20px;">
                   <li>Total team members: <strong>${summary?.total_members||0}</strong></li>
@@ -631,17 +744,20 @@ export const generateProfessionalPDF = async (data, type) => {
                 <div style="font-size:13px;margin-top:8px;"><strong>Insight:</strong> ${(summary?.pending||0)===0?'Evaluation process is complete with 100% completion rate.':`${summary?.pending} pending evaluation(s) should be completed to ensure accurate data.`}</div>
               </div>
 
-              <div data-section style="margin-bottom:30px;padding:0;background:white;">
+              <div data-section style="margin-bottom:30px;padding:0;background:white;margin-top:120px;">
+                <div style="height:10px;"></div>
                 <h2 style="font-size:18px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:14px;">9. Risk Detection</h2>
                 ${(risks||[]).length>0?`<ul style="font-size:13px;line-height:2;margin:0;padding-left:20px;">${(risks||[]).map(r=>`<li>⚠ ${r}</li>`).join('')}</ul>`:`<div style="font-size:14px;">✅ No significant risks detected for this team.</div>`}
               </div>
 
-              <div data-section style="margin-bottom:30px;padding:0;background:white;">
+              <div data-section style="margin-bottom:30px;padding:0;background:white;margin-top:120px;">
+                <div style="height:10px;"></div>
                 <h2 style="font-size:18px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:14px;">10. Manager Recommendations</h2>
                 <ol style="font-size:14px;line-height:2;margin:0;padding-left:22px;">${(recommendations||[]).map(r=>`<li>${r}</li>`).join('')}</ol>
               </div>
 
-              <div data-section style="margin-bottom:30px;padding:0;background:white;">
+              <div data-section style="margin-bottom:30px;padding:0;background:white;margin-top:120px;">
+                <div style="height:10px;"></div>
                 <h2 style="font-size:18px;font-weight:700;color:#000000;border-bottom:2px solid #cccccc;padding-bottom:8px;margin-bottom:14px;">11. Team Members Detailed Table</h2>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <thead><tr style="background:#f0f0f0;border-bottom:2px solid #999;"><th style="padding:10px;text-align:left;border:1px solid #ccc;">Employee Name</th><th style="padding:10px;text-align:left;border:1px solid #ccc;">Role</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Score</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Rating</th><th style="padding:10px;text-align:center;border:1px solid #ccc;">Status</th></tr></thead>

@@ -32,7 +32,8 @@
 .organization-table thead th {
   text-align: center;
   padding: 10px;
-  color: var(--primary-color);
+  color: white;
+  background-color: #003f88;
   font-size: var(--font-size-sm);
   font-family: var(--font-primary);
   font-weight: var(--font-weight-bold);
@@ -54,6 +55,7 @@
 
 .organization-table tbody td {
   padding: 10px;
+  text-align: center;
   border-bottom: 1px solid var(--data-text);
   font-size: var(--font-size-sm);
   font-family: var(--font-primary);

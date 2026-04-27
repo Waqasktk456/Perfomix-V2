@@ -4,9 +4,11 @@ import { useNavigate } from "react-router-dom";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import "./performance-report.css";
+import "../Employees/Employees.css";
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { generateProfessionalPDF } from '../../utils/pdfGenerator';
+import { generateEnhancedOrgReport } from '../../utils/enhancedOrgReportPDF_COMPLETE';
 
 const AVATAR_COLORS = [
   '#e74c3c', '#e67e22', '#f39c12', '#27ae60', '#16a085',
@@ -16,6 +18,22 @@ const getAvatarColor = (name = '') => {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
+
+const DEPT_BADGE_COLORS = [
+  { bg: '#e8f0fe', text: '#4a6fa5' },
+  { bg: '#e8f5e9', text: '#4a7c59' },
+  { bg: '#fef9e7', text: '#8a7340' },
+  { bg: '#f3e8ff', text: '#7a5fa5' },
+  { bg: '#e0f7fa', text: '#3d7a82' },
+  { bg: '#fce4ec', text: '#a05070' },
+  { bg: '#fff3e0', text: '#8a6040' },
+  { bg: '#e8eaf6', text: '#5560a0' },
+];
+const getDeptBadgeColor = (dept = '') => {
+  let hash = 0;
+  for (let i = 0; i < dept.length; i++) hash = dept.charCodeAt(i) + ((hash << 5) - hash);
+  return DEPT_BADGE_COLORS[Math.abs(hash) % DEPT_BADGE_COLORS.length];
 };
 
 const EmployeePerformanceReport = () => {
@@ -41,7 +59,6 @@ const EmployeePerformanceReport = () => {
       fetchEmployeeEvaluations();
     }
   }, [selectedCycleId]);
-
   const fetchCycles = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -51,7 +68,10 @@ const EmployeePerformanceReport = () => {
       const filtered = cyclesData.filter(c => c.status !== 'draft');
       setCycles(filtered);
       if (filtered.length > 0) {
-        setSelectedCycleId(filtered[0].id);
+        const saved = sessionStorage.getItem('perf_report_cycle_id');
+        const savedId = saved ? (isNaN(saved) ? saved : Number(saved)) : null;
+        const toSelect = (savedId && filtered.find(c => c.id == savedId)) ? savedId : filtered[0].id;
+        setSelectedCycleId(toSelect);
       } else {
         setLoading(false);
       }
@@ -79,6 +99,7 @@ const EmployeePerformanceReport = () => {
           profile: emp.Profile_image,
           name: `${emp.First_name} ${emp.Last_name}`,
           department: emp.Department_name,
+          team: emp.Team_name || 'N/A',
           designation: emp.Designation,
           status: emp.evaluation_status || 'Pending',
           score: Number(emp.overall_weighted_score).toFixed(2) || '0.00',
@@ -89,6 +110,26 @@ const EmployeePerformanceReport = () => {
         }));
 
         setEmployees(mappedEmployees);
+
+        // Restore search state and scroll if coming back from view-performance-report
+        const savedScroll     = sessionStorage.getItem('perf_report_scroll');
+        const savedSearchType = sessionStorage.getItem('perf_report_search_type');
+        const savedSearchVal  = sessionStorage.getItem('perf_report_search_value');
+        if (savedSearchType) { setSearchType(savedSearchType); sessionStorage.removeItem('perf_report_search_type'); }
+        // Only restore search value if it's NOT a name search
+        if (savedSearchVal !== null && savedSearchType !== 'name') {
+          setSearchValue(savedSearchVal);
+        } else {
+          setSearchValue('');
+        }
+        sessionStorage.removeItem('perf_report_search_value');
+        if (savedScroll) {
+          sessionStorage.removeItem('perf_report_scroll');
+          setTimeout(() => {
+            const container = document.querySelector('.table-container-scroll') || document.querySelector('.content');
+            if (container) container.scrollTop = Number(savedScroll);
+          }, 100);
+        }
       }
     } catch (error) {
       console.error('Error fetching employee evaluations:', error);
@@ -112,7 +153,7 @@ const EmployeePerformanceReport = () => {
       case "name":
         return emp.name.toLowerCase().includes(value);
       case "department":
-        return emp.department?.toLowerCase().includes(value);
+        return !searchValue || emp.department === searchValue;
       default:
         return true;
     }
@@ -126,16 +167,15 @@ const EmployeePerformanceReport = () => {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      toast.info("Generating organization report...");
       const response = await axios.get(`http://localhost:5000/api/reports/admin/org-summary?cycle_id=${selectedCycleId}`, config);
-
       if (response.data.success) {
-        toast.info("Generating professional organization report...");
-        await generateProfessionalPDF(response.data, 'admin-summary');
+        await generateEnhancedOrgReport({ ...response.data, _cycleId: selectedCycleId });
         toast.success("Organization report downloaded");
       }
     } catch (error) {
       console.error('PDF Export Error:', error);
-      toast.error("Failed to generate professional report");
+      toast.error("Failed to generate report");
     }
   };
 
@@ -231,7 +271,7 @@ const EmployeePerformanceReport = () => {
         <select
           className="cycle-select"
           value={selectedCycleId}
-          onChange={(e) => setSelectedCycleId(e.target.value)}
+          onChange={(e) => { setSelectedCycleId(e.target.value); sessionStorage.setItem('perf_report_cycle_id', e.target.value); }}
           style={{ 
             marginRight: '20px', 
             padding: '6px 10px', 
@@ -264,35 +304,45 @@ const EmployeePerformanceReport = () => {
       <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', marginBottom: '10px', justifyContent: 'space-between' }}>
         <div className="search-container-main" style={{ flex: '0 0 auto', maxWidth: '600px', marginBottom: 0 }}>
           <div className="search-input-wrapper">
-            <input
-              type="text"
-              className="search-input-field"
-              placeholder={`Search by ${searchType}...`}
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-            />
+            {searchType === 'department' ? (
+              <select
+                className="search-input-field"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                style={{
+                  cursor: 'pointer',
+                  color: searchValue ? '#1e3a5f' : '#94a3b8',
+                  fontWeight: searchValue ? 600 : 400,
+                }}
+              >
+                <option value="" style={{ color: '#94a3b8', fontWeight: 400 }}>— Select Department —</option>
+                {[...new Set(employees.map(e => e.department).filter(Boolean))].sort().map(dept => (
+                  <option key={dept} value={dept} style={{ color: '#1e3a5f', fontWeight: 500, padding: '8px' }}>{dept}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                className="search-input-field"
+                placeholder={`Search by ${searchType}...`}
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+              />
+            )}
           </div>
 
           <div className="search-type-buttons">
             <button
               type="button"
               className={`search-type-btn ${searchType === 'name' ? 'active' : ''}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setSearchType('name');
-              }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSearchType('name'); setSearchValue(''); }}
             >
               Name
             </button>
             <button
               type="button"
               className={`search-type-btn ${searchType === 'department' ? 'active' : ''}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setSearchType('department');
-              }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSearchType('department'); setSearchValue(''); }}
             >
               Department
             </button>
@@ -321,25 +371,43 @@ const EmployeePerformanceReport = () => {
       </div>
 
       {/* Table with fixed height and scroll */}
-      <div className="table-container-scroll">
-        <table className="report-table">
+      <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', marginBottom: '15px' }}>
+        {/* Fixed Header Table */}
+        <table className="report-table employees-table" style={{ marginBottom: 0 }}>
           <colgroup>
             <col style={{ width: '20%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '20%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '11%' }} />
           </colgroup>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Department </th>
-              <th>Designation</th>
-              <th>Evaluation Status</th>
-              <th>Score</th>
+              <th style={{ position: 'sticky', top: 0, zIndex: 10 }}><span style={{ position: 'relative', left: '30px', fontWeight: 700, color: 'white' }}>Name</span></th>
+              <th style={{ textAlign: 'center', fontWeight: 700, color: 'white', background: '#003f88', borderBottom: '2px solid #003f88' }}>Department </th>
+              <th style={{ textAlign: 'center', fontWeight: 700, color: 'white', background: '#003f88', borderBottom: '2px solid #003f88' }}>Team</th>
+              <th style={{ textAlign: 'center', fontWeight: 700, color: 'white', background: '#003f88', borderBottom: '2px solid #003f88' }}>Designation</th>
+              <th style={{ textAlign: 'center', fontWeight: 700, color: 'white', background: '#003f88', borderBottom: '2px solid #003f88' }}>Evaluation Status</th>
+              <th style={{ textAlign: 'center', fontWeight: 700, color: 'white', background: '#003f88', borderBottom: '2px solid #003f88' }}>Score</th>
+              <th style={{ textAlign: 'center', fontWeight: 700, color: 'white', background: '#003f88', borderBottom: '2px solid #003f88' }}>Action</th>
             </tr>
           </thead>
-          <tbody>
+        </table>
+        {/* Scrollable Body */}
+        <div style={{ maxHeight: '400px', overflowY: 'auto', overflowX: 'hidden' }}>
+          <table className="report-table employees-table" style={{ marginTop: 0 }}>
+            <colgroup>
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '11%' }} />
+            </colgroup>
+            <tbody>
             {filteredEmployees.length === 0 ? (
               <tr>
                 <td colSpan="5" style={{ textAlign: "center", padding: "40px" }}>
@@ -350,53 +418,108 @@ const EmployeePerformanceReport = () => {
               filteredEmployees.map((emp, index) => (
                 <tr
                   key={index}
-                  className={selectedEmployee && selectedEmployee.id === emp.id && selectedEmployee._rowIndex === index ? 'highlighted-row' : ''}
-                  onClick={() => setSelectedEmployee({ ...emp, _rowIndex: index })}
+                  onClick={() => {
+                    const container = document.querySelector('.table-container-scroll') || document.querySelector('.content');
+                    if (container) sessionStorage.setItem('perf_report_scroll', container.scrollTop);
+                    sessionStorage.setItem('perf_report_cycle_id', selectedCycleId);
+                    sessionStorage.setItem('perf_report_search_type', searchType);
+                    sessionStorage.setItem('perf_report_search_value', searchValue);
+                    navigate('/view-performance-report', {
+                      state: { employee: emp, cycleId: selectedCycleId }
+                    });
+                  }}
                   style={{ cursor: 'pointer' }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0f4ff'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = ''}
                 >
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div className="emp-name-cell">
                       {emp.profile && emp.profile !== 'https://via.placeholder.com/40' ? (
-                        <img src={emp.profile} alt="Profile" style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        <img
+                          src={emp.profile.startsWith('http') ? emp.profile : `http://localhost:5000${emp.profile}`}
+                          alt={emp.name}
+                          className="emp-avatar"
+                        />
                       ) : (
-                        <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: getAvatarColor(emp.name), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px', flexShrink: 0, textTransform: 'uppercase' }}>
+                        <div
+                          className="emp-avatar emp-avatar-fallback"
+                          style={{ background: getAvatarColor(emp.name) }}
+                        >
                           {getInitials(emp.name)}
                         </div>
                       )}
-                      <span style={{ fontWeight: 600, color: '#1e3a5f' }}>{emp.name}</span>
+                      <span className="emp-name-text" style={{ fontWeight: 600, color: '#1e3a5f' }}>{emp.name}</span>
                     </div>
                   </td>
-                  <td>{emp.department}</td>
-                  <td>{emp.designation}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    {emp.department ? (() => {
+                      const c = getDeptBadgeColor(emp.department);
+                      return <span className="dept-badge" style={{ background: c.bg, color: c.text }}>{emp.department}</span>;
+                    })() : 'N/A'}
+                  </td>
+                  <td style={{ textAlign: 'center', color: '#64748b', fontSize: '13px' }}>{emp.team}</td>
+                  <td style={{ textAlign: 'center' }}>{emp.designation}</td>
                   <td className={emp.status === "Complete" ? "status-complete" : "status-pending"}>{emp.status}</td>
                   <td>{emp.score}</td>
+                  <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                    <button
+                      title="View Performance"
+                      onClick={() => {
+                        const container = document.querySelector('.table-container-scroll') || document.querySelector('.content');
+                        if (container) sessionStorage.setItem('perf_report_scroll', container.scrollTop);
+                        sessionStorage.setItem('perf_report_cycle_id', selectedCycleId);
+                        sessionStorage.setItem('perf_report_search_type', searchType);
+                        sessionStorage.setItem('perf_report_search_value', searchValue);
+                        navigate('/view-performance-report', {
+                          state: { employee: emp, cycleId: selectedCycleId }
+                        });
+                      }}
+                      className="organization-icon-button action-btn-view"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    </button>
+                    <button
+                      title="Download Report"
+                      onClick={async () => {
+                        if (!emp || !emp.evaluation_id) {
+                          toast.error("Evaluation record not found for this employee");
+                          return;
+                        }
+                        try {
+                          const token = localStorage.getItem('token');
+                          const config = { headers: { Authorization: `Bearer ${token}` } };
+                          const res = await axios.get(`http://localhost:5000/api/reports/individual/${emp.evaluation_id}`, config);
+                          if (res.data.success) {
+                            toast.info(`Generating assessment for ${emp.name}...`);
+                            await generateProfessionalPDF(res.data, 'individual-assessment');
+                            toast.success("Assessment report downloaded");
+                          } else {
+                            toast.error("Failed to fetch report data");
+                          }
+                        } catch (error) {
+                          console.error('Employee report error:', error);
+                          toast.error("Failed to generate report");
+                        }
+                      }}
+                      className="organization-icon-button action-btn-view"
+                      style={{ marginLeft: '4px' }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="bottom-buttons">
-        <button
-          className="profile-btn"
-          onClick={() => selectedEmployee && navigate(`/employees/details/${selectedEmployee.id}`)}
-          disabled={!selectedEmployee}
-        >
-          View Profile
-        </button>
-        <button
-          className="performance-btn"
-          onClick={() => selectedEmployee && navigate('/view-performance-report', { 
-            state: { 
-              employee: selectedEmployee,
-              cycleId: selectedCycleId 
-            } 
-          })}
-          disabled={!selectedEmployee}
-        >
-          View Performance
-        </button>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

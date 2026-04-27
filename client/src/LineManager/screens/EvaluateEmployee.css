@@ -143,8 +143,8 @@
   line-height: 20px !important;
   font-weight: 600 !important;
   letter-spacing: normal !important;
-  color: #45556b !important;
-  background: #F8FAFC !important;
+  color: white !important;
+  background: #003f88 !important;
   padding: 8px 15px;
 }
 
@@ -156,7 +156,7 @@
   letter-spacing: normal !important;
   color: #3D1D29 !important;
   padding: 15px;
-  max-width: 140px;
+  min-width: 240px;
   white-space: normal;
   word-wrap: break-word;
 }
@@ -319,4 +319,52 @@
 .eval-submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.eval-rating-col {
+  max-width: 190px;
+  width: 190px;
+}
+
+/* Feedback & Recommendations 2-column layout */
+.feedback-recommendation-grid {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  margin-top: 24px;
+}
+
+.feedback-rec-column {
+  flex: 1;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.feedback-rec-header {
+  background: #003f88;
+  color: white;
+  padding: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid #ddd;
+}
+
+.feedback-rec-row {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px;
+  height: 120px;
+  overflow-y: auto;
+}
+
+.feedback-rec-row:last-child {
+  border-bottom: none;
+}
+
+.feedback-rec-text {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.6;
 }

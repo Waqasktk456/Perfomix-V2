@@ -6,7 +6,8 @@ import { FaPlus, FaBook, FaSearch, FaLayerGroup, FaCheckCircle } from "react-ico
 import { EditIcon, DeleteIcon, NoDepartmentImg } from "../../assets";
 import "./CreateMatrix.css";
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import SuccessModal from '../../modals/SuccessModal';
 import ParameterLibraryModal from './ParameterLibraryModal';
 
@@ -175,6 +176,7 @@ const CreateMatrix = () => {
 
   return (
     <div className="create-matrix-container">
+      <ToastContainer position="top-right" autoClose={3000} />
       <SuccessModal
         open={showSuccess}
         onClose={() => setShowSuccess(false)}
@@ -359,14 +361,14 @@ const CreateMatrix = () => {
               className="save-btn"
               style={{ backgroundColor: '#6c757d', marginRight: '10px' }}
               onClick={() => handleSave(false)}
-              disabled={totalWeightage > 100 || loading}
+              disabled={loading}
             >
               {loading ? 'Saving...' : 'Save as Draft'}
             </button>
             <button
               className="save-btn"
               onClick={() => handleSave(true)}
-              disabled={totalWeightage !== 100 || loading}
+              disabled={loading}
             >
               {loading ? 'Saving...' : (isEditMode ? "Update & Activate" : "Save & Activate")}
             </button>

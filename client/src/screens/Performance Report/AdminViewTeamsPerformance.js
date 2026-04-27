@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { generateProfessionalPDF } from '../../utils/pdfGenerator';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer, LabelList } from 'recharts';
 import '../../LineManager/screens/team-performance.css';
 
 const AdminViewTeamsPerformance = () => {
@@ -13,6 +14,7 @@ const AdminViewTeamsPerformance = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [teamStats, setTeamStats] = useState(null);
+  const [paramData, setParamData] = useState([]);
 
   useEffect(() => {
     if (!team) {
@@ -44,6 +46,16 @@ const AdminViewTeamsPerformance = () => {
           }
 
           setTeamStats({ topPerformer, lowPerformer, lastActivity: team.last_activity || null, avgScore: Number(team.avg_performance_score) || 0 });
+
+          // Fetch parameter data for chart
+          if (team.assignment_id) {
+            try {
+              const token = localStorage.getItem('token');
+              const res = await axios.get(`http://localhost:5000/api/reports/team?assignment_id=${team.assignment_id}`, { headers: { Authorization: `Bearer ${token}` } });
+              if (res.data.success && res.data.parameters?.length) setParamData(res.data.parameters);
+            } catch (e) {}
+          }
+
           setLoading(false);
           return;
         }
@@ -70,6 +82,13 @@ const AdminViewTeamsPerformance = () => {
         if (team.low_performer?.name) lowPerformer = { name: team.low_performer.name, score: team.low_performer.score, designation: team.low_performer.designation || "N/A" };
 
         setTeamStats({ topPerformer, lowPerformer, lastActivity: team.last_activity || null, avgScore: Number(team.avg_performance_score) || 0 });
+
+        // Fetch parameter data for chart
+        try {
+          const res = await axios.get(`http://localhost:5000/api/reports/team?assignment_id=${assignmentId}`, { headers: { Authorization: `Bearer ${token}` } });
+          if (res.data.success && res.data.parameters?.length) setParamData(res.data.parameters);
+        } catch (e) {}
+
         setLoading(false);
       } catch (err) {
         toast.error("Failed to load team performance: " + (err.response?.data?.message || err.message));
@@ -123,7 +142,7 @@ const AdminViewTeamsPerformance = () => {
   return (
     <div className="team-performance-container">
       <div className="performance-header">
-        <button className="back-btn" onClick={() => navigate("/team-performance")}>
+        <button className="back-btn" onClick={() => navigate(-1)}>
           ← Back
         </button>
         <div className="header-content">
@@ -150,14 +169,37 @@ const AdminViewTeamsPerformance = () => {
             <p className="stat-label">{team.completed_evaluations}/{team.employee_count} Evaluations</p>
           </div>
           <div className="stat-card">
-            <h3>Last Activity</h3>
-            <div className="stat-value-medium">{formatLastActivity(teamStats.lastActivity)}</div>
-            <p className="stat-label">Most Recent Update</p>
+            <h3>Performance Distribution</h3>
+            {(() => {
+              const completed = employees.filter(e => e.status === 'completed' && e.overall_score);
+              const excellent = completed.filter(e => parseFloat(e.overall_score) > 80).length;
+              const average   = completed.filter(e => parseFloat(e.overall_score) >= 70 && parseFloat(e.overall_score) <= 80).length;
+              const attention = completed.filter(e => parseFloat(e.overall_score) < 70).length;
+              return (
+                <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 8 }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981' }}>{excellent}</div>
+                    <div style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>Excellent</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>&gt;80%</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: '#3b82f6' }}>{average}</div>
+                    <div style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>Average</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>70–80%</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: '#ef4444' }}>{attention}</div>
+                    <div style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>Attention</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>&lt;70%</div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
 
-      {teamStats && (teamStats.topPerformer || teamStats.lowPerformer) && (
+      {teamStats && (teamStats.topPerformer || employees.length > 0) && (
         <div className="performers-section">
           <h2 className="section-title">Key Performers</h2>
           <div className="performers-grid">
@@ -165,22 +207,41 @@ const AdminViewTeamsPerformance = () => {
               <div className="performer-card top-performer-card">
                 <div className="performer-header"><span className="performer-icon">🏆</span><h3>Top Performer</h3></div>
                 <div className="performer-details">
+                  {parseFloat(teamStats.topPerformer.score) <= 70 && (
+                    <p style={{ margin: '0 0 6px', fontSize: 11, color: '#f59e0b', fontWeight: 600 }}>Highest Among Low Performers</p>
+                  )}
                   <p className="performer-name">{teamStats.topPerformer.name}</p>
                   <p className="performer-designation">{teamStats.topPerformer.designation}</p>
                   <div className="performer-score"><span className="score-label">Score:</span><span className="score-value">{teamStats.topPerformer.score}</span></div>
                 </div>
               </div>
             )}
-            {teamStats.lowPerformer && (
-              <div className="performer-card low-performer-card">
-                <div className="performer-header"><span className="performer-icon">📊</span><h3>Needs Support</h3></div>
-                <div className="performer-details">
-                  <p className="performer-name">{teamStats.lowPerformer.name}</p>
-                  <p className="performer-designation">{teamStats.lowPerformer.designation}</p>
-                  <div className="performer-score"><span className="score-label">Score:</span><span className="score-value">{teamStats.lowPerformer.score}</span></div>
+            {(() => {
+              const needSupport = employees
+                .filter(e => e.status === 'completed' && parseFloat(e.overall_score) < 70)
+                .sort((a, b) => parseFloat(a.overall_score) - parseFloat(b.overall_score))
+                .slice(0, 3);
+              return (
+                <div className="performer-card low-performer-card">
+                  <div className="performer-header"><span className="performer-icon">📊</span><h3>Needs Support</h3></div>
+                  <div className="performer-details">
+                    {needSupport.length === 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 80, paddingTop: 20 }}>
+                        <p style={{ margin: 0, fontSize: 16, color: '#475569', fontWeight: 600, textAlign: 'center' }}>All members are performing well</p>
+                      </div>
+                    ) : needSupport.map((emp, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: i < needSupport.length - 1 ? 6 : 0, padding: '4px 0', borderBottom: i < needSupport.length - 1 ? '1px solid #fee2e2' : 'none' }}>
+                        <div>
+                          <p className="performer-name" style={{ margin: 0, fontSize: 13 }}>{emp.name}</p>
+                          <p className="performer-designation" style={{ margin: 0, fontSize: 11 }}>{emp.designation}</p>
+                        </div>
+                        <span className="score-value" style={{ color: '#ef4444', fontWeight: 700, fontSize: 14 }}>{parseFloat(emp.overall_score).toFixed(1)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       )}
@@ -260,6 +321,54 @@ const AdminViewTeamsPerformance = () => {
           })}
         </div>
       </div>
+
+      {/* Parameter Performance Chart */}
+      {(() => {
+        if (!paramData.length) return null;
+
+        let chartData = [...paramData]
+          .map(p => ({ name: p.name, score: parseFloat(p.avg_score || 0) }))
+          .sort((a, b) => a.score - b.score);
+
+        if (chartData.length > 8) chartData = chartData.slice(0, 5);
+
+        const weakest  = chartData[0];
+        const strongest = chartData[chartData.length - 1];
+
+        return (
+          <div style={{ margin: '16px 0 0', background: '#fff', border: '1.5px solid #e1e8f0', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(45,108,223,0.07)' }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1e3a5f', margin: '0 0 12px 0' }}>Parameter Performance Analysis</h2>
+
+            {/* Insights */}
+            <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+              <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
+                ⚠ Weakest: {weakest.name} ({weakest.score}%)
+              </div>
+              <div style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
+                ★ Strongest: {strongest.name} ({strongest.score}%)
+              </div>
+            </div>
+
+            <ResponsiveContainer width="100%" height={chartData.length * 52 + 20}>
+              <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 60, left: 8, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
+                <YAxis type="category" dataKey="name" width={160} tick={{ fontSize: 12, fill: '#334155' }} />
+                <Tooltip formatter={(v) => [`${v}%`, 'Avg Score']} />
+                <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={28}>
+                  {chartData.map((entry, i) => (
+                    <Cell
+                      key={i}
+                      fill={entry.name === weakest.name ? '#ef4444' : entry.name === strongest.name ? '#10b981' : '#3b82f6'}
+                    />
+                  ))}
+                  <LabelList dataKey="score" position="right" formatter={v => `${v}%`} style={{ fontSize: 12, fontWeight: 700, fill: '#334155' }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      })()}
     </div>
   );
 };

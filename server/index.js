@@ -19,6 +19,8 @@ const templateRoutes = require('./routes/templateRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const performanceRatingRoutes = require('./routes/performanceRatingRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+
 
 // ADD THIS LINE - EVALUATION CYCLE ROUTES
 const evaluationCycleRoutes = require('./routes/evaluationCycleRoutes');
@@ -116,6 +118,10 @@ console.log('Mounted: /api/notifications → notificationRoutes');
 
 app.use('/api/performance-ratings', performanceRatingRoutes);
 console.log('Mounted: /api/performance-ratings → performanceRatingRoutes');
+
+app.use('/api/ai', aiRoutes);
+console.log('Mounted: /api/ai → aiRoutes');
+
 
 // ADD THIS LINE - MOUNT EVALUATION CYCLE ROUTES
 app.use('/api', evaluationCycleRoutes);

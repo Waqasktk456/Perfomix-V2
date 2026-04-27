@@ -12,6 +12,7 @@ import 'react-toastify/dist/ReactToastify.css';
 const AddEmployees = () => {
   const { Employee_id } = useParams();
   const navigate = useNavigate();
+  const navigateBack = () => navigate('/employees');
   const [showSuccess, setShowSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -155,7 +156,7 @@ const AddEmployees = () => {
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
-        navigate('/employees');
+        navigateBack();
       }, 2000);
     } catch (err) {
       console.error(err);
@@ -173,10 +174,15 @@ const AddEmployees = () => {
   const selectedRoleLabel = roleOptions.find(r => r.value === formData.role)?.label || '';
 
   return (
-    <div className="add-employee-container">
+    <div className="add-employee-container" style={{ width: '100%' }}>
       <ToastContainer position="top-right" autoClose={3000} theme="light" style={{ zIndex: 9999 }} />
 
-      <h2 className="form-title">{Employee_id ? 'Edit Employee' : 'Add Employee'}</h2>
+      <div className="employee-details-header" style={{ marginBottom: '16px' }}>
+        <button className="back-button" onClick={navigateBack}>← Back</button>
+        <div className="header-content">
+          <h1>{Employee_id ? 'Edit Employee' : 'Add Employee'}</h1>
+        </div>
+      </div>
 
       <SuccessModal
         open={showSuccess}
@@ -236,8 +242,10 @@ const AddEmployees = () => {
         /> */}
       </div>
 
-      <div className="form-buttons">
-        <button className="save-btn" onClick={handleSubmit}>Save</button>
+      <div className="form-buttons" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-10px' }}>
+        <button className="save-btn" style={{ minWidth: '140px', padding: '13px 16px' }} onClick={handleSubmit}>
+          {Employee_id ? 'Update' : 'Save'}
+        </button>
       </div>
     </div>
   );

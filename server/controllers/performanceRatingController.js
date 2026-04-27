@@ -4,52 +4,29 @@ const db = require('../db');
 // Get all ratings for organization
 exports.getRatings = async (req, res) => {
   try {
-    console.log('=== getRatings called ===');
-    console.log('User ID:', req.user.id);
-    console.log('Token organizationId:', req.user.organizationId);
-    
-    // Always fetch fresh organization_id from database to avoid stale token issues
-    const [userRows] = await db.query(
-      'SELECT organization_id FROM users WHERE id = ?',
-      [req.user.id]
-    );
-    
-    console.log('Database query result:', userRows);
-    
-    if (!userRows || userRows.length === 0) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    
-    const organizationId = userRows[0]?.organization_id;
-    
-    console.log('Fetching ratings for organization:', organizationId, 'User:', req.user.id);
-    
+    // Get organization_id from token first, then fallback to DB lookup
+    let organizationId = req.user.organizationId;
+
     if (!organizationId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Organization ID not found. Please complete organization setup.',
-        debug: {
-          userId: req.user.id,
-          userRows: userRows
-        }
-      });
+      // Try users table first, then employees table
+      const [userRows] = await db.query('SELECT organization_id FROM users WHERE id = ?', [req.user.id]);
+      if (userRows.length > 0 && userRows[0].organization_id) {
+        organizationId = userRows[0].organization_id;
+      } else {
+        const [empRows] = await db.query('SELECT organization_id FROM employees WHERE id = ?', [req.user.id]);
+        if (empRows.length > 0) organizationId = empRows[0].organization_id;
+      }
     }
-    
-    // Ensure default ratings exist
-    console.log('Calling ensureDefaultRatings for org:', organizationId);
+
+    if (!organizationId) {
+      return res.status(400).json({ success: false, message: 'Organization ID not found.' });
+    }
+
     const ratings = await PerformanceRating.ensureDefaultRatings(organizationId);
-    
-    console.log(`Found ${ratings.length} ratings for organization ${organizationId}`);
-    
     res.json({ success: true, data: ratings });
   } catch (error) {
     console.error('Error fetching ratings:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch ratings', 
-      error: error.message,
-      stack: error.stack 
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch ratings', error: error.message });
   }
 };
 
@@ -57,28 +34,29 @@ exports.getRatings = async (req, res) => {
 exports.getRatingForScore = async (req, res) => {
   try {
     const { score } = req.params;
-    
-    // Always fetch fresh organization_id from database to avoid stale token issues
-    const [[user]] = await db.query(
-      'SELECT organization_id FROM users WHERE id = ?',
-      [req.user.id]
-    );
-    
-    const organizationId = user?.organization_id;
-    
+
+    let organizationId = req.user.organizationId;
+    if (!organizationId) {
+      const [userRows] = await db.query('SELECT organization_id FROM users WHERE id = ?', [req.user.id]);
+      if (userRows.length > 0 && userRows[0].organization_id) {
+        organizationId = userRows[0].organization_id;
+      } else {
+        const [empRows] = await db.query('SELECT organization_id FROM employees WHERE id = ?', [req.user.id]);
+        if (empRows.length > 0) organizationId = empRows[0].organization_id;
+      }
+    }
+
     if (!organizationId) {
       return res.status(400).json({ success: false, message: 'Organization ID not found' });
     }
-    
-    // Ensure default ratings exist
+
     await PerformanceRating.ensureDefaultRatings(organizationId);
-    
     const rating = await PerformanceRating.getRatingForScore(parseFloat(score), organizationId);
-    
+
     if (!rating) {
       return res.status(404).json({ success: false, message: 'No rating found for this score' });
     }
-    
+
     res.json({ success: true, data: rating });
   } catch (error) {
     console.error('Error fetching rating for score:', error);

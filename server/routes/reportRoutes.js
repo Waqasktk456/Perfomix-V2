@@ -9,6 +9,9 @@ router.use(verifyToken);
 // Admin Routes
 router.get('/admin/org-summary', reportController.getAdminOrgSummary);
 router.get('/admin/employee-list', reportController.getAdminEmployeeList);
+router.get('/admin/org-trend', reportController.getOrgTrend);
+router.get('/admin/team-insights', reportController.getTeamInsights);
+router.get('/admin/benchmarking', reportController.getBenchmarking);
 
 // Line Manager Routes
 router.get('/manager/team-report', reportController.getTeamReport);

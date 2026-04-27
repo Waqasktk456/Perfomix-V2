@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList, CartesianGrid, PieChart, Pie, Legend } from "recharts";
 import { generateProfessionalPDF } from '../../utils/pdfGenerator';
 import '../../LineManager/screens/team-performance.css';
+import '../Employees/Employees.css';
 
 const getBarColor = (score) => {
   if (score >= 80) return '#10b981'; // green
@@ -33,6 +34,7 @@ const DepartmentPerformanceReport = () => {
   const [loading, setLoading] = useState(true);
   const [deptStats, setDeptStats] = useState(null);
   const [teamChartData, setTeamChartData] = useState([]);
+  const [paramData, setParamData] = useState([]);
 
   useEffect(() => {
     if (!dept || !dept.dept_name) {
@@ -96,6 +98,18 @@ const DepartmentPerformanceReport = () => {
           : 0;
 
         setDeptStats({ avgScore });
+
+        // Fetch parameter data for insights
+        try {
+          const paramRes = await axios.get(
+            `http://localhost:5000/api/reports/department?dept_name=${encodeURIComponent(dept.dept_name)}&cycle_id=${dept.cycle_id}`,
+            config
+          );
+          if (paramRes.data.success && paramRes.data.parameters?.length) {
+            setParamData(paramRes.data.parameters);
+          }
+        } catch (e) { /* param optional */ }
+
         setLoading(false);
       } catch (err) {
         toast.error("Failed to load department performance");
@@ -164,16 +178,23 @@ const DepartmentPerformanceReport = () => {
             <p className="stat-label">In this department</p>
           </div>
           <div className="stat-card">
-            <h3>Last Activity</h3>
-            <div className="stat-value-medium">
-              {teamChartData.reduce((sum, t) => sum + t.completedCount, 0) > 0 ? "Recent" : "No activity yet"}
+            <h3>Completion Rate</h3>
+            <div className="stat-value-large">
+              {(() => {
+                const total = teamChartData.reduce((sum, t) => sum + t.employeeCount, 0);
+                const completed = teamChartData.reduce((sum, t) => sum + t.completedCount, 0);
+                return total > 0 ? Math.round((completed / total) * 100) : 0;
+              })()}%
             </div>
-            <p className="stat-label">Most Recent Update</p>
+            <p className="stat-label">
+              {teamChartData.reduce((sum, t) => sum + t.completedCount, 0)}/{teamChartData.reduce((sum, t) => sum + t.employeeCount, 0)} Evaluations
+            </p>
           </div>
         </div>
       )}
 
-      {/* Team Comparison Chart */}
+      {/* Team Comparison Chart — only if more than 1 team */}
+      {teamChartData.length > 1 && (
       <div className="performers-section">
         <h2 className="section-title">Team Performance Comparison</h2>
         <p style={{ color: '#64748b', fontSize: 13, marginTop: -8, marginBottom: 16 }}>
@@ -232,78 +253,218 @@ const DepartmentPerformanceReport = () => {
           </>
         )}
       </div>
+      )}
+
+      {/* Performance Distribution Section */}
+      {teamChartData.length > 0 && (() => {
+        const allEmps = teamChartData.flatMap(t => t.rawEmployees || []);
+        const completed = allEmps.filter(e => e.evaluation_status === 'Complete' || e.evaluation_status === 'completed');
+        const total = completed.length;
+        if (total === 0) return null;
+
+        const excellent   = completed.filter(e => parseFloat(e.overall_weighted_score || 0) >= 80).length;
+        const average     = completed.filter(e => { const s = parseFloat(e.overall_weighted_score || 0); return s >= 70 && s < 80; }).length;
+        const attention   = completed.filter(e => parseFloat(e.overall_weighted_score || 0) < 70).length;
+
+        const cats = [
+          { name: 'Excellent',       count: excellent, color: '#10b981', bg: '#f0fdf4', border: '#bbf7d0', pct: Math.round((excellent/total)*100) },
+          { name: 'Average',         count: average,   color: '#f59e0b', bg: '#fffbeb', border: '#fde68a', pct: Math.round((average/total)*100)   },
+          { name: 'Needs Attention', count: attention, color: '#ef4444', bg: '#fef2f2', border: '#fecaca', pct: Math.round((attention/total)*100) },
+        ];
+
+        const dominant = [...cats].sort((a,b) => b.count - a.count)[0];
+
+        const CustomDistTooltip = ({ active, payload }) => {
+          if (!active || !payload?.length) return null;
+          const d = payload[0].payload;
+          return (
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
+              <div style={{ fontWeight: 700, color: d.color }}>{d.name}</div>
+              <div>Employees: <strong>{d.count}</strong></div>
+              <div>Percentage: <strong>{d.pct}%</strong></div>
+            </div>
+          );
+        };
+
+        return (
+          <div className="performers-section">
+            <h2 className="section-title">Performance Distribution</h2>
+            <p style={{ color: '#64748b', fontSize: 13, marginTop: -8, marginBottom: 16 }}>
+              Employee distribution across performance categories
+            </p>
+
+            {/* Summary Cards */}
+            <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
+              {cats.map(c => (
+                <div key={c.name} style={{ flex: 1, minWidth: 120, background: c.bg, border: `1.5px solid ${c.border}`, borderRadius: 10, padding: '22px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 900, color: c.color }}>{c.count}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginTop: 2 }}>{c.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: c.color, marginTop: 2 }}>{c.pct}%</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Donut chart */}
+            <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+              <ResponsiveContainer width={220} height={220}>
+                <PieChart>
+                  <Pie data={cats} dataKey="count" cx="50%" cy="50%" innerRadius={55} outerRadius={85}>
+                    {cats.map((c, i) => <Cell key={i} fill={c.color} />)}
+                  </Pie>
+                  <Tooltip content={<CustomDistTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+
+              {/* Insight panel */}
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '16px 18px' }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#1e3a5f', marginBottom: 10 }}>Key Insights</div>
+                  <div style={{ fontSize: 13, color: '#334155', marginBottom: 6 }}>
+                    → Most employees fall in: <strong style={{ color: dominant.color }}>{dominant.name}</strong> ({dominant.count} employees)
+                  </div>
+                  {attention > 0 && (
+                    <div style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>
+                      → Risk Area: {attention} employee{attention > 1 ? 's' : ''} require{attention === 1 ? 's' : ''} improvement
+                    </div>
+                  )}
+                  {attention === 0 && (
+                    <div style={{ fontSize: 13, color: '#10b981', fontWeight: 600 }}>
+                      → All employees are performing at Average or above
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Parameter Insights Section */}
+      {paramData.length > 0 && (() => {
+        let chartData = [...paramData]
+          .map(p => ({ name: p.name, score: parseFloat(p.avg_score || 0) }))
+          .sort((a, b) => a.score - b.score);
+        if (chartData.length > 8) chartData = chartData.slice(0, 5);
+        const weakest  = chartData[0];
+        const strongest = chartData[chartData.length - 1];
+        return (
+          <div className="performers-section" style={{ marginBottom: 8 }}>
+            <h2 className="section-title">Parameter Performance Insights</h2>
+            <p style={{ color: '#64748b', fontSize: 13, marginTop: -8, marginBottom: 16 }}>
+              Average score per evaluation parameter across this department
+            </p>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+              <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
+                ⚠ Weakest Area: {weakest.name} ({weakest.score}%)
+              </div>
+              <div style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
+                ★ Strongest Area: {strongest.name} ({strongest.score}%)
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={Math.max(420, chartData.length * 70 + 120)}>
+              <BarChart data={chartData} margin={{ top: 20, right: 20, left: 8, bottom: 100 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#334155' }} angle={-45} textAnchor="end" interval={0} height={100} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickFormatter={v => `${v}%`} />
+                <Tooltip formatter={(v) => [`${v}%`, 'Avg Score']} />
+                <Bar dataKey="score" radius={[6, 6, 0, 0]} barSize={36}>
+                  {chartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.name === weakest.name ? '#ef4444' : entry.name === strongest.name ? '#10b981' : '#3b82f6'} />
+                  ))}
+                  <LabelList dataKey="score" position="top" formatter={v => `${v}%`} style={{ fontSize: 11, fontWeight: 700, fill: '#334155' }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      })()}
 
       {/* Teams Table */}
-      <div className="members-section">
+      <div className="members-section" style={{ marginTop: -35 }}>
         <h2 className="section-title">Teams in {dept.dept_name}</h2>
         <div className="table-container-scroll">
-          <table className="report-table">
+          <table className="report-table employees-table">
             <thead>
               <tr>
-                <th>SR NO</th>
-                <th>Team Name</th>
-                <th>Employees</th>
-                <th>Completed</th>
-                <th>Pending</th>
-                <th>Avg Score</th>
-                <th>Action</th>
+                <th style={{ textAlign: 'left', paddingLeft: 16, fontWeight: 700, color: '#1e3a5f', background: '#eaf1fb', borderBottom: '2px solid #c2d8f5' }}>Team Name</th>
+                <th style={{ textAlign: 'center', fontWeight: 700, color: '#1e3a5f', background: '#eaf1fb', borderBottom: '2px solid #c2d8f5' }}>Employees</th>
+                <th style={{ textAlign: 'center', fontWeight: 700, color: '#1e3a5f', background: '#eaf1fb', borderBottom: '2px solid #c2d8f5' }}>Completed</th>
+                <th style={{ textAlign: 'center', fontWeight: 700, color: '#1e3a5f', background: '#eaf1fb', borderBottom: '2px solid #c2d8f5' }}>Pending</th>
+                <th style={{ textAlign: 'center', fontWeight: 700, color: '#1e3a5f', background: '#eaf1fb', borderBottom: '2px solid #c2d8f5' }}>Avg Score</th>
+                <th style={{ textAlign: 'center', fontWeight: 700, color: '#1e3a5f', background: '#eaf1fb', borderBottom: '2px solid #c2d8f5' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {teamChartData.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: "center", padding: "40px" }}>No teams found</td>
+                  <td colSpan="6" style={{ textAlign: "center", padding: "40px" }}>No teams found</td>
                 </tr>
               ) : (
-                teamChartData.map((team) => (
-                  <tr key={team.srNo}>
-                    <td>{team.srNo}</td>
-                    <td>{team.team}</td>
-                    <td>{team.employeeCount}</td>
-                    <td>{team.completedCount}</td>
-                    <td>{team.pendingCount}</td>
-                    <td>{team.score}</td>
-                    <td
-                      className="action-view"
-                      onClick={() => {
-                        const teamEmployees = team.rawEmployees.map(emp => ({
-                          employee_id: emp.Employee_id,
-                          name: `${emp.First_name} ${emp.Last_name}`,
-                          designation: emp.Designation,
-                          email: emp.Email,
-                          profile_image: emp.Profile_image,
-                          status: emp.evaluation_status === "Complete" ? "completed" : "pending",
-                          progress: emp.evaluation_status === "Complete" ? 100 : 0,
-                          overall_score: emp.overall_weighted_score,
-                          evaluation_id: emp.id,
-                          total_params: 0,
-                        }));
-                        navigate("/adminview-teams-performance", {
-                          state: {
-                            team_name: team.team,
-                            team_id: team.srNo,
-                            assignment_id: team.srNo,
-                            department_name: dept.dept_name,
-                            employee_count: team.employeeCount,
-                            completed_evaluations: team.completedCount,
-                            pending_evaluations: team.pendingCount,
-                            avg_performance_score: team.score,
-                            matrix_name: "Performance Matrix",
-                            cycle_name: dept.cycle_name,
-                            employees: teamEmployees,
-                          }
-                        });
-                      }}
+                teamChartData.map((team, idx) => {
+                  const goToTeam = () => {
+                    const teamEmployees = team.rawEmployees.map(emp => ({
+                      employee_id: emp.Employee_id,
+                      name: `${emp.First_name} ${emp.Last_name}`,
+                      designation: emp.Designation,
+                      email: emp.Email,
+                      profile_image: emp.Profile_image,
+                      status: emp.evaluation_status === "Complete" ? "completed" : "pending",
+                      progress: emp.evaluation_status === "Complete" ? 100 : 0,
+                      overall_score: emp.overall_weighted_score,
+                      evaluation_id: emp.id,
+                      total_params: 0,
+                    }));
+                    navigate("/adminview-teams-performance", {
+                      state: {
+                        team_name: team.team,
+                        team_id: team.srNo,
+                        assignment_id: team.srNo,
+                        department_name: dept.dept_name,
+                        employee_count: team.employeeCount,
+                        completed_evaluations: team.completedCount,
+                        pending_evaluations: team.pendingCount,
+                        avg_performance_score: team.score,
+                        matrix_name: "Performance Matrix",
+                        cycle_name: dept.cycle_name,
+                        employees: teamEmployees,
+                        _fromDeptReport: true,
+                      }
+                    });
+                  };
+                  return (
+                    <tr
+                      key={team.srNo}
+                      onClick={goToTeam}
+                      style={{ cursor: 'pointer' }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0f4ff'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = ''}
                     >
-                      View
-                    </td>
-                  </tr>
-                ))
+                      <td style={{ fontWeight: 700, color: '#1e3a5f', textAlign: 'left', paddingLeft: 16 }}>{team.team}</td>
+                      <td style={{ textAlign: 'center' }}>{team.employeeCount}</td>
+                      <td style={{ textAlign: 'center' }}>{team.completedCount}</td>
+                      <td style={{ textAlign: 'center' }}>{team.pendingCount}</td>
+                      <td style={{ textAlign: 'center' }}>{team.score}</td>
+                      <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                        <button
+                          title="View Performance"
+                          onClick={goToTeam}
+                          className="organization-icon-button action-btn-view"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
+
     </div>
   );
 };

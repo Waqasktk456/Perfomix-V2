@@ -133,7 +133,7 @@ const LineManagerPerformance = () => {
   return (
     <div className="staff-dashboard-container">
       <div className="breadcrumb">
-        <span onClick={() => navigate('/line-manager-evaluation')} style={{ cursor: 'pointer' }}>
+        <span onClick={() => navigate('/linemanager-evaluation', { state: { returnToCycleId: location.state?.cycleId } })} style={{ cursor: 'pointer' }}>
           Line Manager Evaluation
         </span> &gt;
         <span className="active"> View Performance </span>

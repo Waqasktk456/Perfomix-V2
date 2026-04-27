@@ -459,9 +459,7 @@ exports.getEvaluationForm = async (req, res) => {
         p.parameter_name,
         pmx.weightage,
         COALESCE(ed.rating, NULL) AS rating,
-        COALESCE(ed.score, NULL) AS score,
-        COALESCE(ed.comments, '') AS feedback,
-        COALESCE(ed.recommendation, '') AS recommendation
+        COALESCE(ed.score, NULL) AS score
       FROM evaluations ev
       JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
       JOIN parameter_matrices pmx ON pmx.matrix_id = cta.matrix_id
@@ -471,10 +469,18 @@ exports.getEvaluationForm = async (req, res) => {
       ORDER BY p.parameter_name
     `, [evaluationId, lineManagerId]);
 
+    // Fetch global feedback and recommendation from evaluations table
+    const [[evalGlobal]] = await db.query(`
+      SELECT comments AS feedback, areas_for_improvement AS recommendation
+      FROM evaluations WHERE id = ?
+    `, [evaluationId]);
+
     res.json({
       success: true,
       evaluation_status: evaluationStatus,
       is_editable: isEditable,
+      feedback: evalGlobal?.feedback || '',
+      recommendation: evalGlobal?.recommendation || '',
       parameters: rows
     });
 
@@ -494,7 +500,7 @@ exports.saveDraftEvaluation = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const { evaluation_id, parameters } = req.body;
+    const { evaluation_id, parameters, feedback, recommendation } = req.body;
     const lineManagerId = req.user.id;
 
     if (!evaluation_id || !Array.isArray(parameters)) {
@@ -534,16 +540,14 @@ exports.saveDraftEvaluation = async (req, res) => {
           });
         }
 
-        // Insert rating - score will be auto-calculated by database trigger
+        // Insert rating only — no per-parameter comments/recommendation
         await connection.query(`
-          INSERT INTO evaluation_details (evaluation_id, parameter_id, rating, comments, recommendation)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO evaluation_details (evaluation_id, parameter_id, rating)
+          VALUES (?, ?, ?)
           ON DUPLICATE KEY UPDATE
             rating = VALUES(rating),
-            comments = VALUES(comments),
-            recommendation = VALUES(recommendation),
             updated_at = CURRENT_TIMESTAMP
-        `, [evaluation_id, param.parameter_id, rating, param.comments || null, param.recommendation || null]);
+        `, [evaluation_id, param.parameter_id, rating]);
 
         const [updateResult] = await connection.query(`
           UPDATE evaluation_status 
@@ -560,11 +564,15 @@ exports.saveDraftEvaluation = async (req, res) => {
       }
     }
 
+    // Save global feedback and recommendation to evaluations table
     await connection.query(`
       UPDATE evaluations 
-      SET status = 'draft', updated_at = CURRENT_TIMESTAMP
+      SET status = 'draft',
+          comments = ?,
+          areas_for_improvement = ?,
+          updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `, [evaluation_id]);
+    `, [feedback || null, recommendation || null, evaluation_id]);
 
     await connection.commit();
 
@@ -592,7 +600,7 @@ exports.submitEvaluation = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const { evaluation_id, parameters } = req.body;
+    const { evaluation_id, parameters, feedback, recommendation } = req.body;
     const lineManagerId = req.user.id;
 
     if (!evaluation_id || !Array.isArray(parameters)) {
@@ -649,16 +657,14 @@ exports.submitEvaluation = async (req, res) => {
         });
       }
 
-      // Insert rating - score will be auto-calculated by database trigger
+      // Insert rating only — no per-parameter comments/recommendation
       await connection.query(`
-        INSERT INTO evaluation_details (evaluation_id, parameter_id, rating, comments, recommendation)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO evaluation_details (evaluation_id, parameter_id, rating)
+        VALUES (?, ?, ?)
         ON DUPLICATE KEY UPDATE
           rating = VALUES(rating),
-          comments = VALUES(comments),
-          recommendation = VALUES(recommendation),
           updated_at = CURRENT_TIMESTAMP
-      `, [evaluation_id, param.parameter_id, rating, param.comments || null, param.recommendation || null]);
+      `, [evaluation_id, param.parameter_id, rating]);
 
       const [updateResult] = await connection.query(`
         UPDATE evaluation_status 
@@ -702,10 +708,12 @@ exports.submitEvaluation = async (req, res) => {
           overall_score = ?,
           rating_id = ?,
           rating_name = ?,
+          comments = ?,
+          areas_for_improvement = ?,
           submitted_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `, [finalScore, ratingId, ratingName, evaluation_id]);
+    `, [finalScore, ratingId, ratingName, feedback || null, recommendation || null, evaluation_id]);
 
     await connection.commit();
 

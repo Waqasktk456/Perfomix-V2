@@ -31,6 +31,7 @@ const LineManagerDashboard = () => {
   const [cycles, setCycles] = useState([]);
   const [selectedCycleId, setSelectedCycleId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [trendData, setTrendData] = useState([]);
 
   useEffect(() => {
     // Fetch all cycles first
@@ -116,13 +117,22 @@ const LineManagerDashboard = () => {
             percentageScore: item.percentageScore
           })));
 
-          // Calculate total score from weighted scores
-          const total = mappedData.reduce((acc, curr) => acc + (Number(curr.weightedScore) || 0), 0);
-          console.log('Calculated total score:', total);
-          setTotalScore(total); // Store as number, not string
+          // Calculate total score - use overall_score from API if available
+          const total = evalData.overall_score 
+            ? parseFloat(evalData.overall_score) 
+            : mappedData.reduce((acc, curr) => acc + (Number(curr.weightedScore) || 0), 0);
+          setTotalScore(total);
 
-          if (evalData.id) {
-            setEvaluationId(evalData.id);
+          // Fetch rating color/category immediately
+          if (total > 0) {
+            const rating = await getPerformanceRating(total);
+            setPerformance(rating);
+          } else {
+            setPerformance({ level: 'Not Rated', color: '#9E9E9E', bg: '#F5F5F5' });
+          }
+
+          if (evalData.evaluation_id || evalData.id) {
+            setEvaluationId(evalData.evaluation_id || evalData.id);
           }
         } else {
           console.log('No evaluation found for this cycle');
@@ -130,6 +140,7 @@ const LineManagerDashboard = () => {
           setParametersData([]);
           setChartData([]);
           setTotalScore(0);
+          setPerformance({ level: 'No Evaluation', color: '#9E9E9E', bg: '#F5F5F5' });
           setEvaluationId(null);
         }
       } catch (error) {
@@ -152,14 +163,33 @@ const LineManagerDashboard = () => {
   useEffect(() => {
     const fetchRating = async () => {
       if (totalScore > 0) {
-        console.log('Fetching rating for score:', totalScore);
         const rating = await getPerformanceRating(totalScore);
-        console.log('Fetched rating:', rating);
         setPerformance(rating);
       }
     };
     fetchRating();
   }, [totalScore]);
+
+  // Fetch performance trend across all cycles
+  useEffect(() => {
+    const fetchTrend = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        const response = await axios.get('http://localhost:5000/api/staff/lm-evaluation-trend', config);
+        if (response.data.success && Array.isArray(response.data.trend)) {
+          setTrendData(response.data.trend.map(t => ({
+            ...t,
+            overall_score: parseFloat(t.overall_score) || 0
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching performance trend:', error);
+      }
+    };
+    fetchTrend();
+  }, []);
 
   // Best and worst parameter logic
   const bestParam = parametersData.reduce((best, curr) => {
@@ -360,6 +390,87 @@ const LineManagerDashboard = () => {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Performance Trend Across Cycles */}
+      {trendData.length > 0 && (
+        <div className="chart-section">
+          {(() => {
+            const currentCycleIndex = trendData.findIndex(t => t.cycle_id === parseInt(selectedCycleId));
+            const currentScore = currentCycleIndex >= 0 ? trendData[currentCycleIndex].overall_score : null;
+            const previousScore = currentCycleIndex > 0 ? trendData[currentCycleIndex - 1].overall_score : null;
+            const performanceChange = currentScore && previousScore ? (currentScore - previousScore).toFixed(1) : null;
+            const averageScore = (trendData.reduce((sum, t) => sum + t.overall_score, 0) / trendData.length).toFixed(1);
+
+            return (
+              <>
+                <div className="trend-header">
+                  <h3 className="section-title">Performance Trend Across Cycles</h3>
+                  <p className="trend-subtitle">Across {trendData.length} Evaluation Cycle{trendData.length > 1 ? 's' : ''}</p>
+                </div>
+
+                {performanceChange !== null && (
+                  <div className={`performance-insight ${parseFloat(performanceChange) > 0 ? 'positive' : parseFloat(performanceChange) < 0 ? 'negative' : 'neutral'}`}>
+                    {parseFloat(performanceChange) > 0 ? (
+                      <><span className="insight-icon">▲</span><span className="insight-text">Your performance improved by {Math.abs(performanceChange)}% compared to the previous cycle.</span></>
+                    ) : parseFloat(performanceChange) < 0 ? (
+                      <><span className="insight-icon">▼</span><span className="insight-text">Your performance declined by {Math.abs(performanceChange)}% compared to the previous cycle.</span></>
+                    ) : (
+                      <span className="insight-text">Your performance remained stable compared to the previous cycle.</span>
+                    )}
+                  </div>
+                )}
+
+                <ResponsiveContainer width="100%" height={400}>
+                  <ComposedChart data={trendData} margin={{ top: 60, right: 40, left: 60, bottom: 20 }}>
+                    <XAxis dataKey="cycle_name" tick={{ fontSize: 13, fontWeight: 500 }} />
+                    <YAxis
+                      domain={[0, 100]}
+                      label={{ value: "Overall Performance (%)", angle: -90, position: "insideLeft", offset: 0, style: { fontSize: 14, fontWeight: 600 } }}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: 'white', border: '2px solid #003f88', borderRadius: '8px', padding: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+                      formatter={(value, name, props) => {
+                        const rating = props.payload.rating_name || 'Not Rated';
+                        return [`${value}% - ${rating}`, 'Performance'];
+                      }}
+                      labelFormatter={(label) => `Cycle: ${label}`}
+                    />
+                    <Legend verticalAlign="top" height={36} wrapperStyle={{ paddingBottom: '10px' }} />
+                    <Line type="monotone" dataKey={() => parseFloat(averageScore)} stroke="#9E9E9E" strokeWidth={2} strokeDasharray="5 5" dot={false} name={`Average: ${averageScore}%`} />
+                    <Line
+                      type="monotone"
+                      dataKey="overall_score"
+                      stroke="#003f88"
+                      strokeWidth={4}
+                      dot={{ fill: "#003f88", strokeWidth: 3, r: 8, stroke: "#fff" }}
+                      activeDot={{ r: 10, strokeWidth: 3, stroke: "#fff" }}
+                      name="Overall Performance"
+                    >
+                      <LabelList
+                        dataKey="overall_score"
+                        position="top"
+                        content={(props) => {
+                          const { x, y, value, index } = props;
+                          const rating = trendData[index]?.rating_name || '';
+                          const xOffset = index === 0 ? 40 : 0;
+                          const yOffset = index === trendData.length - 1 ? -10 : 0;
+                          return (
+                            <g>
+                              <text x={x + xOffset} y={y - 20 + yOffset} fill="#003f88" fontSize={13} fontWeight="bold" textAnchor="middle">{value}%</text>
+                              <text x={x + xOffset} y={y - 5 + yOffset} fill="#666" fontSize={11} textAnchor="middle">{rating}</text>
+                            </g>
+                          );
+                        }}
+                      />
+                    </Line>
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </>
+            );
+          })()}
+        </div>
+      )}
 
     </div>
 

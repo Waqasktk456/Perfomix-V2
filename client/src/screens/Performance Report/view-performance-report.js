@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import { FaChevronDown } from "react-icons/fa";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Checkbox } from "@mui/material";
 import { Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LabelList, Cell } from "recharts";
 import axios from 'axios';
@@ -8,11 +7,14 @@ import { toast } from 'react-toastify';
 import { generateProfessionalPDF } from '../../utils/pdfGenerator';
 import { getPerformanceRating } from '../../services/performanceRatingService';
 import "./view-performance-report.css";
+import "../Employees/Employees.css";
 
 const ViewPerformanceReport = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const employee = location.state?.employee;
   const [trendline, setTrendline] = useState(true);
+  const [showAvatarPopup, setShowAvatarPopup] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState("Monthly");
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [performanceData, setPerformanceData] = useState([]);
@@ -23,115 +25,92 @@ const ViewPerformanceReport = () => {
   const [benchmarkData, setBenchmarkData] = useState(null);
   const [cycleId, setCycleId] = useState(location.state?.cycleId || null);
   const [trendData, setTrendData] = useState([]);
+  const [cycles, setCycles] = useState([]);
+  const [selectedCycleId, setSelectedCycleId] = useState(location.state?.cycleId || null);
+  const [currentEvaluationId, setCurrentEvaluationId] = useState(employee?.evaluation_id || null);
+  const [overallFeedback, setOverallFeedback] = useState(null);
+  const [overallRecommendation, setOverallRecommendation] = useState(null);
+
+  // Fetch non-draft cycles
+  useEffect(() => {
+    const fetchCycles = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        const res = await axios.get('http://localhost:5000/api/cycles', config);
+        const allCycles = Array.isArray(res.data) ? res.data : [];
+        const nonDraft = allCycles.filter(c => c.status !== 'draft');
+        setCycles(nonDraft);
+        if (!selectedCycleId && nonDraft.length > 0) {
+          setSelectedCycleId(nonDraft[0].id);
+        }
+      } catch (err) {
+        console.error('Error fetching cycles:', err);
+      }
+    };
+    fetchCycles();
+  }, []);
 
   useEffect(() => {
     const fetchPerformance = async () => {
-      if (employee?.evaluation_id) {
-        try {
-          const token = localStorage.getItem('token');
-          const config = {
-            headers: { Authorization: `Bearer ${token}` }
-          };
-
-          // Use evaluation_id directly instead of fetching by employee_id
-          const res = await axios.get(`http://localhost:5000/api/evaluations/by-id/${employee.evaluation_id}`, config);
-
-          console.log('=== Admin View Performance Data ===');
-          console.log('Full response:', res.data);
-          console.log('Evaluations array:', res.data.evaluations);
-          
-          if (res.data.evaluations && res.data.evaluations.length > 0) {
-            console.log('First evaluation item:', JSON.stringify(res.data.evaluations[0], null, 2));
-            console.log('All ratings from backend:', res.data.evaluations.map(e => ({ 
-              param: e.parameter, 
-              rating: e.rating, 
-              score: e.score 
-            })));
-          }
-
-          if (res.data.success && Array.isArray(res.data.evaluations)) {
-            const evaluations = res.data.evaluations;
-
-            // Map data similar to staff dashboard
-            const mapped = evaluations.map(ev => {
-              const rawScore = Number(ev.score) || 0;
-              const weight = Number(ev.weightage) || 0;
-              const rating = Number(ev.rating) || 0;
-              
-              console.log('Processing parameter:', ev.parameter);
-              console.log('  Raw values from backend - rating:', ev.rating, 'score:', ev.score, 'weight:', ev.weightage);
-              console.log('  Converted values - rating:', rating, 'score:', rawScore, 'weight:', weight);
-              
-              // Calculate weighted score (for table display)
-              const weightedScore = ((weight / 100) * rawScore).toFixed(2);
-              
-              // For chart: Convert rating (1-5) to percentage (20-100)
-              // If rating is 0 or null, calculate from score
-              let percentageScore;
-              let displayRating = rating;
-              
-              if (rating > 0) {
-                percentageScore = rating * 20;
-                console.log('  Using rating for chart:', rating, '→', percentageScore, '%');
-              } else if (rawScore > 0) {
-                // Calculate rating from score if rating is missing
-                displayRating = Math.round(rawScore / 20);
-                percentageScore = rawScore;
-                console.log('  Calculated rating from score:', rawScore, '→ rating:', displayRating, '→', percentageScore, '%');
-              } else {
-                displayRating = 0;
-                percentageScore = 0;
-                console.log('  No rating or score available');
-              }
-              
-              return {
-                parameter_id: ev.parameter_id,
-                parameter_name: ev.parameter,
-                parameter: ev.parameter, // keep both for compatibility
-                weightage: weight,
-                rating: displayRating, // Use calculated rating if original is 0
-                score: rawScore,
-                weightedScore: parseFloat(weightedScore),
-                percentageScore: percentageScore, // 0-100 based on rating or score
-                feedback: ev.feedback || '',
-                evaluation_status: ev.evaluation_status
-              };
-            });
-
-            console.log('Final mapped data:', mapped.map(m => ({ 
-              param: m.parameter, 
-              rating: m.rating,
-              score: m.score,
-              percent: m.percentageScore 
-            })));
-            
-            setPerformanceData(mapped);
-            
-            // Use stored overall_score if available, otherwise calculate
-            if (res.data.overall_score) {
-              setStoredOverallScore(res.data.overall_score);
-            }
-
-            // Set cycle_id if not already set
-            if (res.data.cycle_id && !cycleId) {
-              setCycleId(res.data.cycle_id);
-            }
-          } else {
-            setPerformanceData([]);
-          }
-        } catch (error) {
-          console.error('Error fetching performance data:', error);
+      const empId = employee?.id;
+      if (!empId || !selectedCycleId) { setLoading(false); return; }
+      // Reset state immediately on cycle change
+      setPerformanceData([]);
+      setStoredOverallScore(null);
+      setOverallFeedback(null);
+      setOverallRecommendation(null);
+      setPerformance({ level: 'Loading...', color: '#9E9E9E', bg: '#F5F5F5' });
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        const res = await axios.get(
+          `http://localhost:5000/api/evaluations/employee/${empId}/cycle/${selectedCycleId}`,
+          config
+        );
+        if (res.data.success && Array.isArray(res.data.evaluations)) {
+          const mapped = res.data.evaluations.map(ev => {
+            const rawScore = Number(ev.score) || 0;
+            const weight = Number(ev.weightage) || 0;
+            const rating = Number(ev.rating) || 0;
+            const weightedScore = ((weight / 100) * rawScore).toFixed(2);
+            let percentageScore, displayRating = rating;
+            if (rating > 0) { percentageScore = rating * 20; }
+            else if (rawScore > 0) { displayRating = Math.round(rawScore / 20); percentageScore = rawScore; }
+            else { displayRating = 0; percentageScore = 0; }
+            return {
+              parameter_id: ev.parameter_id,
+              parameter_name: ev.parameter,
+              parameter: ev.parameter,
+              weightage: weight,
+              rating: displayRating,
+              score: rawScore,
+              weightedScore: parseFloat(weightedScore),
+              percentageScore,
+              feedback: ev.feedback || '',
+              recommendation: ev.recommendation || '',
+              evaluation_status: ev.evaluation_status
+            };
+          });
+          setPerformanceData(mapped);
+          setStoredOverallScore(res.data.overall_score || null);
+          setOverallFeedback(res.data.feedback || null);
+          setOverallRecommendation(res.data.recommendation || null);
+          if (res.data.evaluation_id) setCurrentEvaluationId(res.data.evaluation_id);
+          if (res.data.cycle_id) setCycleId(res.data.cycle_id);
+        } else {
           setPerformanceData([]);
-        } finally {
-          setLoading(false);
+          setStoredOverallScore(null);
         }
-      } else {
+      } catch (error) {
+        console.error('Error fetching performance data:', error);
+        setPerformanceData([]);
+      } finally {
         setLoading(false);
       }
     };
-
     fetchPerformance();
-  }, [employee, cycleId]);
+  }, [employee, selectedCycleId]);
 
   // Fetch performance trend for this employee
   useEffect(() => {
@@ -214,12 +193,14 @@ const ViewPerformanceReport = () => {
     ? performanceData.reduce((acc, curr) => acc + (Number(curr.weightedScore) || 0), 0)
     : 0);
 
-  // Fetch performance rating from database
+  // Fetch performance rating from database — reset when no data
   useEffect(() => {
     const fetchRating = async () => {
       if (totalScore > 0) {
         const rating = await getPerformanceRating(totalScore);
         setPerformance(rating);
+      } else {
+        setPerformance({ level: 'No Evaluation', color: '#9E9E9E', bg: '#F5F5F5' });
       }
     };
     fetchRating();
@@ -241,10 +222,9 @@ const ViewPerformanceReport = () => {
 
 
   const exportToPDF = async () => {
-    // We attempt to use the evaluation_id from the employee object
-    const evalId = employee?.evaluation_id;
+    const evalId = currentEvaluationId;
     if (!evalId) {
-      toast.error("Evaluation record not found");
+      toast.error("No completed evaluation found for the selected cycle");
       return;
     }
 
@@ -254,13 +234,15 @@ const ViewPerformanceReport = () => {
       const res = await axios.get(`http://localhost:5000/api/reports/individual/${evalId}`, config);
 
       if (res.data.success) {
-        toast.info(`Generating professional assessment for ${employee.name}...`);
+        toast.info(`Generating report for ${employee.name}...`);
         await generateProfessionalPDF(res.data, 'individual-assessment');
-        toast.success("Assessment report downloaded");
+        toast.success("Report downloaded");
+      } else {
+        toast.error("Failed to fetch report data");
       }
     } catch (error) {
       console.error('Individual PDF Export Error:', error);
-      toast.error("Failed to generate professional report");
+      toast.error("Failed to generate report");
     }
   };
 
@@ -268,6 +250,14 @@ const ViewPerformanceReport = () => {
 
   return (
     <div className="staff-dashboard-container">
+      {/* Back button */}
+      <button
+        onClick={() => navigate(-1)}
+        className="add-employee-btn"
+        style={{ marginBottom: 16, minWidth: 'unset', width: 'auto', padding: '10px 20px' }}
+      >
+        ← Back
+      </button>
       {/* Total Score Display */}
       <div className="total-score-container">
         <div className="score-card">
@@ -298,25 +288,93 @@ const ViewPerformanceReport = () => {
       </div>
 
       <div className="staff-filters-container">
-        <select className="staff-filter-dropdown" defaultValue="Month">
-          <option>Month</option>
+        <select
+          value={selectedCycleId || ''}
+          onChange={e => setSelectedCycleId(e.target.value)}
+          style={{
+            minWidth: 'unset',
+            width: 'auto',
+            padding: '10px 36px 10px 14px',
+            border: '1.5px solid #c7d7f0',
+            borderRadius: '10px',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: '#1e3a5f',
+            background: 'linear-gradient(135deg, #f0f6ff 0%, #e8f0fe 100%)',
+            boxShadow: '0 2px 8px rgba(45,108,223,0.10)',
+            cursor: 'pointer',
+            outline: 'none',
+            appearance: 'none',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%232d6cdf' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 12px center',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
+          }}
+        >
+          <option value="">Select Cycle</option>
+          {cycles.map(c => (
+            <option key={c.id} value={c.id}>{c.cycle_name || c.name}</option>
+          ))}
         </select>
-        <select className="staff-filter-dropdown" defaultValue="Year">
-          <option>Year</option>
-        </select>
-        <h2 className="report-title" style={{ flexGrow: 1, textAlign: 'center', margin: 0 }}>{employee?.name || "Employee"}</h2>
+        <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginRight: '130px' }}>
+          {/* Avatar with hover popup */}
+          <div style={{ position: 'relative', flexShrink: 0 }}
+            onMouseEnter={() => setShowAvatarPopup(true)}
+            onMouseLeave={() => setShowAvatarPopup(false)}
+          >
+          {employee?.profile_image || employee?.profile ? (
+            <img
+              src={`http://localhost:5000${employee.profile_image || employee.profile}`}
+              alt={employee.name}
+              style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #c7d7f0', flexShrink: 0, display: 'block', cursor: 'pointer' }}
+            />
+          ) : (
+            <div style={{
+              width: '46px', height: '46px', borderRadius: '50%', flexShrink: 0,
+              background: '#2d6cdf', color: '#fff', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', fontWeight: '700', fontSize: '16px',
+              border: '2px solid #c7d7f0', cursor: 'pointer'
+            }}>
+              {(employee?.name || 'E').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          {/* Hover popup */}
+          {showAvatarPopup && (employee?.profile_image || employee?.profile) && (
+            <div style={{
+              position: 'absolute', bottom: '0', right: '54px',
+              zIndex: 1000, background: '#fff', borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.22)', padding: '8px',
+              border: '1.5px solid #c7d7f0'
+            }}>
+              <img
+                src={`http://localhost:5000${employee.profile_image || employee.profile}`}
+                alt={employee.name}
+                style={{ width: '200px', height: '200px', borderRadius: '8px', objectFit: 'contain', display: 'block', background: '#f8fafc' }}
+              />
+              <div style={{ textAlign: 'center', marginTop: '6px', fontSize: '13px', fontWeight: '700', color: '#1e3a5f' }}>
+                {employee.name}
+              </div>
+            </div>
+          )}
+          </div>
+          {/* Name + Email */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
+            <span style={{ fontWeight: '900', fontSize: '16px', color: '#1e3a5f', lineHeight: '1.2' }}>
+              {employee?.name || 'Employee'}
+            </span>
+            <span style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+              {employee?.email || ''}
+            </span>
+          </div>
+        </div>
         <div className="export-container">
           <button
             className="staff-export-report-btn"
-            onClick={() => setShowExportOptions(!showExportOptions)}
+            style={{ whiteSpace: 'nowrap', minWidth: '120px', maxWidth: '130px', padding: '12px 10px', textAlign: 'center' }}
+            onClick={exportToPDF}
           >
-            Export Report <FaChevronDown />
+            Export Report
           </button>
-          {showExportOptions && (
-            <div className="export-options">
-              <button onClick={exportToPDF}>Export as PDF</button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -327,13 +385,11 @@ const ViewPerformanceReport = () => {
             <th>Weight (%)</th>
             <th>Rating (1-5)</th>
             <th>Score</th>
-            <th>Feedback</th>
-            <th>Recommendations</th>
           </tr>
         </thead>
         <tbody>
           {performanceData.length === 0 ? (
-            <tr><td colSpan="6" style={{ textAlign: 'center' }}>No completed evaluations found.</td></tr>
+            <tr><td colSpan="4" style={{ textAlign: 'center' }}>No completed evaluations found.</td></tr>
           ) : (
             performanceData.map((item, index) => (
               <tr key={index}>
@@ -341,13 +397,29 @@ const ViewPerformanceReport = () => {
                 <td>{item.weightage}%</td>
                 <td>{item.rating}</td>
                 <td>{item.weightedScore}</td>
-                <td>{item.feedback || '-'}</td>
-                <td>{item.recommendation || '-'}</td>
               </tr>
             ))
           )}
         </tbody>
       </table>
+
+      {/* Feedback & Recommendations 2-column layout */}
+      {performanceData.length > 0 && (
+        <div className="feedback-recommendation-grid">
+          <div className="feedback-rec-column">
+            <div className="feedback-rec-header">Feedback</div>
+            <div className="feedback-rec-row">
+              <span className="feedback-rec-text">{overallFeedback || '-'}</span>
+            </div>
+          </div>
+          <div className="feedback-rec-column">
+            <div className="feedback-rec-header">Recommendations</div>
+            <div className="feedback-rec-row">
+              <span className="feedback-rec-text">{overallRecommendation || '-'}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="staff-chart-section">
         <Checkbox

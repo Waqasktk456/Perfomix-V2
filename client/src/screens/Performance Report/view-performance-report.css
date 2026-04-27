@@ -314,7 +314,7 @@
 }
 
 .staff-export-report-btn {
-  height: 32px;
+  height: 38px;
   font-size: 12px;
   padding: 4px 10px;
   background-color: #003f88;
@@ -324,6 +324,7 @@
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -433,4 +434,51 @@
   font-size: 15px;
   background: #f8f9fa;
   border-radius: 8px;
+}
+
+/* Feedback & Recommendations 2-column layout */
+.feedback-recommendation-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 0 0 4px 4px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.feedback-rec-column {
+  border-right: 1px solid #ddd;
+}
+
+.feedback-rec-column:last-child {
+  border-right: none;
+}
+
+.feedback-rec-header {
+  background: #003f88;
+  color: white;
+  padding: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid #ddd;
+}
+
+.feedback-rec-row {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px;
+  height: 120px;
+  overflow-y: auto;
+}
+
+.feedback-rec-row:last-child {
+  border-bottom: none;
+}
+
+.feedback-rec-text {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.6;
 }

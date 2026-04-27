@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import "./Teams.css";
 import "../Employees/Employees.css";
@@ -37,13 +37,20 @@ const getDeptBadgeColor = (dept = '') => {
 
 const Teams = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
+
+  const currentPage = parseInt(new URLSearchParams(location.search).get('page') || '1', 10);
+  const setCurrentPage = (page) => {
+    const params = new URLSearchParams(location.search);
+    params.set('page', page);
+    navigate(`?${params.toString()}`, { replace: true });
+  };
 
   // Helper function to get axios config with token
   const getAuthConfig = () => {
@@ -90,7 +97,7 @@ const Teams = () => {
       toast.error("Team is in an active cycle cannot be edit or delete");
       return;
     }
-    navigate(`/add-team/${team.id}`);
+    navigate(`/add-team/${team.id}?returnPage=${currentPage}`);
   };
 
   const handleDelete = async (team) => {

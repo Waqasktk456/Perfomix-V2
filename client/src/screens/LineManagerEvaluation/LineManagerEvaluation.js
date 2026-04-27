@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import './LineManagerEvaluation.css';
 import '../Teams/Teams.css';
 import '../Employees/Employees.css';
 import { NoDepartmentImg } from '../../assets';
+
 
 const AVATAR_COLORS = [
   '#e74c3c','#e67e22','#f39c12','#27ae60','#16a085',
@@ -34,6 +35,7 @@ const getDeptBadgeColor = (dept = '') => {
 
 const LineManagerEvaluationScreen = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [lineManagers, setLineManagers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -61,6 +63,15 @@ const LineManagerEvaluationScreen = () => {
 
   useEffect(() => {
     fetchCycles();
+    
+    // Clear session storage when component unmounts (navigating away from this page)
+    return () => {
+      // Only clear if we're actually leaving the line manager evaluation flow
+      const currentPath = window.location.pathname;
+      if (!currentPath.includes('linemanager') && !currentPath.includes('line-manager')) {
+        sessionStorage.removeItem('lm_eval_selected_cycle');
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -80,9 +91,21 @@ const LineManagerEvaluationScreen = () => {
       const filtered = cyclesData.filter(c => c.status !== 'draft');
       setCycles(filtered);
       
-      // Automatically select the most recent cycle (first in the list)
-      if (filtered.length > 0) {
+      // Check if returning from evaluation page with preserved cycle
+      const returnedCycleId = location.state?.returnToCycleId;
+      const sessionCycleId = sessionStorage.getItem('lm_eval_selected_cycle');
+      
+      if (returnedCycleId && filtered.some(c => c.id === parseInt(returnedCycleId))) {
+        // Preserve the cycle when returning from evaluation pages
+        setSelectedCycleId(parseInt(returnedCycleId));
+        sessionStorage.setItem('lm_eval_selected_cycle', returnedCycleId);
+      } else if (sessionCycleId && filtered.some(c => c.id === parseInt(sessionCycleId))) {
+        // Use session storage if available
+        setSelectedCycleId(parseInt(sessionCycleId));
+      } else if (filtered.length > 0) {
+        // Default to most recent cycle when coming from other pages
         setSelectedCycleId(filtered[0].id);
+        sessionStorage.setItem('lm_eval_selected_cycle', filtered[0].id.toString());
       }
     } catch (error) {
       console.error('Error fetching cycles:', error);
@@ -137,6 +160,88 @@ const LineManagerEvaluationScreen = () => {
     }
   };
 
+  const handleEvaluateAction = async (manager) => {
+    if (!selectedCycleId) {
+      toast.error('Please select an evaluation cycle first');
+      return;
+    }
+
+    try {
+      const config = getAuthConfig();
+      
+      // Check if line manager has completed all their staff evaluations
+      const checkResponse = await axios.get(
+        `http://localhost:5000/api/line-manager/check-completion/${manager.id}/${selectedCycleId}`,
+        config
+      );
+
+      if (!checkResponse.data.allCompleted) {
+        toast.error(
+          `This line manager has ${checkResponse.data.pendingCount} pending staff evaluations. ` +
+          `They must complete all staff evaluations before being evaluated.`
+        );
+        return;
+      }
+
+      // Proceed to evaluation page
+      navigate(`/evaluate-linemanager/${manager.id}`, {
+        state: {
+          lineManagerId: manager.id,
+          lineManagerName: `${manager.first_name} ${manager.last_name}`,
+          lineManagerEmail: manager.email,
+          department: manager.department_name,
+          designation: manager.designation,
+          cycleId: selectedCycleId,
+          cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name,
+          returnToCycleId: selectedCycleId
+        }
+      });
+    } catch (error) {
+      console.error('Error checking line manager completion:', error);
+      toast.error('Failed to check evaluation status');
+    }
+  };
+
+  const handleViewPerformanceAction = (manager) => {
+    if (!selectedCycleId) {
+      toast.error('Please select an evaluation cycle first');
+      return;
+    }
+
+    navigate('/line-manager-performance', {
+      state: {
+        lineManagerId: manager.id,
+        lineManagerName: `${manager.first_name} ${manager.last_name}`,
+        lineManagerEmail: manager.email,
+        department: manager.department_name,
+        designation: manager.designation,
+        cycleId: selectedCycleId,
+        cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name,
+        assignedTeamsCount: manager.assigned_teams_count,
+        completedEvaluations: manager.completed_evaluations,
+        totalEvaluations: manager.total_evaluations,
+        returnToCycleId: selectedCycleId
+      }
+    });
+  };
+
+  const handleViewTeamsPerformanceAction = (manager) => {
+    if (!selectedCycleId) {
+      toast.error('Please select an evaluation cycle first');
+      return;
+    }
+
+    navigate('/line-manager-teams-performance', {
+      state: {
+        lineManagerId: manager.id,
+        lineManagerName: `${manager.first_name} ${manager.last_name}`,
+        cycleId: selectedCycleId,
+        cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name,
+        returnToCycleId: selectedCycleId
+      }
+    });
+  };
+
   const handleRowClick = (manager) => {
     setSelectedLineManager(manager);
   };
@@ -177,7 +282,8 @@ const LineManagerEvaluationScreen = () => {
           department: selectedLineManager.department_name,
           designation: selectedLineManager.designation,
           cycleId: selectedCycleId,
-          cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name
+          cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name,
+          returnToCycleId: selectedCycleId
         }
       });
     } catch (error) {
@@ -207,7 +313,8 @@ const LineManagerEvaluationScreen = () => {
         cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name,
         assignedTeamsCount: selectedLineManager.assigned_teams_count,
         completedEvaluations: selectedLineManager.completed_evaluations,
-        totalEvaluations: selectedLineManager.total_evaluations
+        totalEvaluations: selectedLineManager.total_evaluations,
+        returnToCycleId: selectedCycleId
       }
     });
   };
@@ -227,10 +334,13 @@ const LineManagerEvaluationScreen = () => {
         lineManagerId: selectedLineManager.id,
         lineManagerName: `${selectedLineManager.first_name} ${selectedLineManager.last_name}`,
         cycleId: selectedCycleId,
-        cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name
+        cycleName: cycles.find(c => c.id === parseInt(selectedCycleId))?.name || cycles.find(c => c.id === parseInt(selectedCycleId))?.cycle_name,
+        returnToCycleId: selectedCycleId
       }
     });
   };
+
+
 
   // Filter line managers based on search
   const filteredLineManagers = lineManagers.filter(manager => {
@@ -265,7 +375,16 @@ const LineManagerEvaluationScreen = () => {
         <select
           className="cycle-select"
           value={selectedCycleId}
-          onChange={(e) => setSelectedCycleId(e.target.value)}
+          onChange={(e) => {
+            const newCycleId = e.target.value;
+            setSelectedCycleId(newCycleId);
+            // Update session storage when user manually changes cycle
+            if (newCycleId) {
+              sessionStorage.setItem('lm_eval_selected_cycle', newCycleId);
+            } else {
+              sessionStorage.removeItem('lm_eval_selected_cycle');
+            }
+          }}
           style={{ 
             padding: '8px 12px', 
             borderRadius: '4px', 
@@ -324,11 +443,12 @@ const LineManagerEvaluationScreen = () => {
             {/* Sticky header */}
             <table className="departments-table lm-thead-table" style={{ tableLayout: 'fixed', width: '100%', marginBottom: 0 }}>
               <colgroup>
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '25%' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '17%' }} />
-                <col style={{ width: '18%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '23%' }} />
+                <col style={{ width: '16%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '11%' }} />
               </colgroup>
               <thead>
                 <tr>
@@ -337,23 +457,25 @@ const LineManagerEvaluationScreen = () => {
                   <th>Department</th>
                   <th style={{ textAlign: 'center' }}>Team Eval.</th>
                   <th style={{ textAlign: 'center' }}>Admin Eval.</th>
+                  <th style={{ textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
             </table>
             {/* Scrollable body */}
-            <div className="lm-tbody-scroll" style={{ maxHeight: '330px', overflowY: 'auto' }}>
+            <div className="lm-tbody-scroll" style={{ maxHeight: 'calc(100vh - 250px)', overflowY: 'auto' }}>
               <table className="departments-table" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <colgroup>
-                  <col style={{ width: '22%' }} />
-                  <col style={{ width: '25%' }} />
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '17%' }} />
-                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '23%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '11%' }} />
                 </colgroup>
                 <tbody>
                   {filteredLineManagers.length === 0 ? (
                     <tr>
-                      <td colSpan="5" style={{ textAlign: "center" }}>No line manager found</td>
+                      <td colSpan="6" style={{ textAlign: "center" }}>No line manager found</td>
                     </tr>
                   ) : (
                     filteredLineManagers.map((manager) => (
@@ -396,6 +518,86 @@ const LineManagerEvaluationScreen = () => {
                             <span className="status-badge not-evaluated">Not Evaluated</span>
                           )}
                         </td>
+                        <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                          <div style={{ display: 'flex', gap: '0px', justifyContent: 'center', alignItems: 'center' }}>
+                            {/* Evaluate Icon - Clipboard with checkmark */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedLineManager(manager);
+                                handleEvaluateAction(manager);
+                              }}
+                              disabled={!selectedCycleId}
+                              title="Evaluate Line Manager"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: selectedCycleId ? 'pointer' : 'not-allowed',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                opacity: selectedCycleId ? 1 : 0.4
+                              }}
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M9 11l3 3L22 4"/>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                              </svg>
+                            </button>
+                            
+                            {/* View Performance Icon */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedLineManager(manager);
+                                handleViewPerformanceAction(manager);
+                              }}
+                              disabled={!selectedCycleId}
+                              title="View Performance"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: selectedCycleId ? 'pointer' : 'not-allowed',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                opacity: selectedCycleId ? 1 : 0.4
+                              }}
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                              </svg>
+                            </button>
+                            
+                            {/* View Teams Performance Icon */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedLineManager(manager);
+                                handleViewTeamsPerformanceAction(manager);
+                              }}
+                              disabled={!selectedCycleId}
+                              title="View Teams Performance"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: selectedCycleId ? 'pointer' : 'not-allowed',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                opacity: selectedCycleId ? 1 : 0.4
+                              }}
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -403,51 +605,6 @@ const LineManagerEvaluationScreen = () => {
               </table>
             </div>
           </div>
-
-          <button
-            className="organization-view-details-btn"
-            onClick={handleViewPerformance}
-            disabled={!selectedLineManager || !selectedCycleId}
-            style={{
-              opacity: (selectedLineManager && selectedCycleId) ? 1 : 0.5,
-              cursor: (selectedLineManager && selectedCycleId) ? 'pointer' : 'not-allowed',
-              position: "fixed",
-              bottom: 16,
-              right: 30,
-            }}
-          >
-            View Performance
-          </button>
-
-          <button
-            className="organization-view-details-btn"
-            onClick={handleViewTeamsPerformance}
-            disabled={!selectedLineManager || !selectedCycleId}
-            style={{
-              opacity: (selectedLineManager && selectedCycleId) ? 1 : 0.5,
-              cursor: (selectedLineManager && selectedCycleId) ? 'pointer' : 'not-allowed',
-              position: "fixed",
-              bottom: 16,
-              right: 230,
-            }}
-          >
-            View Teams Performance
-          </button>
-
-          <button
-            className="organization-view-details-btn"
-            onClick={handleEvaluate}
-            disabled={!selectedLineManager}
-            style={{
-              opacity: selectedLineManager ? 1 : 0.5,
-              cursor: selectedLineManager ? 'pointer' : 'not-allowed',
-              position: "fixed",
-              bottom: 16,
-              right: 460,
-            }}
-          >
-            Evaluate Line Manager
-          </button>
         </>
       )}
     </div>

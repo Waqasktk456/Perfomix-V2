@@ -15,6 +15,8 @@ exports.getMyEvaluation = async (req, res) => {
         ev.overall_score,
         ev.rating_id,
         ev.rating_name,
+        ev.comments AS feedback,
+        ev.areas_for_improvement AS recommendation,
         pr.color,
         pr.bg_color
       FROM evaluations ev
@@ -72,6 +74,8 @@ exports.getMyEvaluation = async (req, res) => {
       success: true,
       evaluation_id: evaluationId,
       overall_score: evaluation.overall_score,
+      feedback: evaluation.feedback || null,
+      recommendation: evaluation.recommendation || null,
       rating: {
         id: evaluation.rating_id,
         name: evaluation.rating_name,
@@ -319,6 +323,42 @@ exports.getTeamTopParameters = async (req, res) => {
       message: 'Failed to load team parameters',
       error: error.message
     });
+  }
+};
+
+// Line manager views their own performance trend (all evaluations, not just completed)
+exports.getLMEvaluationTrend = async (req, res) => {
+  try {
+    const employeeId = req.user.id;
+    const [evaluations] = await db.query(`
+      SELECT 
+        ev.id AS evaluation_id,
+        ev.cycle_id,
+        ev.overall_score,
+        ev.rating_name,
+        ec.cycle_name,
+        ec.start_date,
+        ec.end_date,
+        ev.updated_at
+      FROM evaluations ev
+      JOIN evaluation_cycles ec ON ev.cycle_id = ec.id
+      WHERE ev.employee_id = ? AND ev.overall_score IS NOT NULL
+      ORDER BY ec.start_date ASC, ev.updated_at ASC
+    `, [employeeId]);
+
+    res.json({
+      success: true,
+      trend: evaluations.map(ev => ({
+        cycle_id: ev.cycle_id,
+        cycle_name: ev.cycle_name,
+        overall_score: parseFloat(ev.overall_score) || 0,
+        rating_name: ev.rating_name,
+        date: ev.updated_at
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching LM evaluation trend:', error);
+    res.status(500).json({ success: false, message: 'Failed to load evaluation trend' });
   }
 };
 

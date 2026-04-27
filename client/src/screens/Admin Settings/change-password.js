@@ -353,6 +353,7 @@ const ChangePassword = () => {
 
         <button
           className="change-btn"
+          style={{ marginTop: '24px' }}
           onClick={handleChangePassword}
           disabled={loading}
         >

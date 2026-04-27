@@ -192,7 +192,7 @@ const IndividualReport = () => {
                                 </div>
                                 <div className="info-row">
                                     <span className="label">Team:</span>
-                                    <span className="value">{cycle_details.team_name || 'N/A'}</span>
+                                    <span className="value">{employee_details.team || 'N/A'}</span>
                                 </div>
                                 <div className="info-row">
                                     <span className="label">Designation:</span>
@@ -242,6 +242,141 @@ const IndividualReport = () => {
                                 <div className="stat-item">
                                     <span className="stat-label">Parameters Evaluated</span>
                                     <span className="stat-value">{performance.parameters.length}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Overall Performance Snapshot */}
+                    <section className="performance-snapshot-section" style={{ margin: '40px 0', padding: '40px', background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+                        <h3 className="section-heading" style={{ textAlign: 'center', marginBottom: '30px', fontSize: '24px' }}>
+                            <FaStar className="heading-icon" style={{ color: '#f59e0b' }} /> Overall Performance Snapshot
+                        </h3>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: '40px', flexWrap: 'wrap' }}>
+                            {/* Big Score Display */}
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ 
+                                    fontSize: '80px', 
+                                    fontWeight: '900', 
+                                    color: performanceLevel.color,
+                                    lineHeight: '1',
+                                    textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                }}>
+                                    {Number(performance.overall_score).toFixed(1)}%
+                                </div>
+                                <div style={{ fontSize: '14px', color: '#64748b', marginTop: '8px', fontWeight: '500' }}>
+                                    Overall Performance Score
+                                </div>
+                            </div>
+
+                            {/* Circular Gauge */}
+                            <div style={{ position: 'relative', width: '200px', height: '200px' }}>
+                                <svg width="200" height="200" viewBox="0 0 200 200" style={{ transform: 'rotate(-90deg)' }}>
+                                    {/* Background circle */}
+                                    <circle
+                                        cx="100"
+                                        cy="100"
+                                        r="85"
+                                        fill="none"
+                                        stroke="#e2e8f0"
+                                        strokeWidth="20"
+                                    />
+                                    {/* Progress circle */}
+                                    <circle
+                                        cx="100"
+                                        cy="100"
+                                        r="85"
+                                        fill="none"
+                                        stroke={performanceLevel.color}
+                                        strokeWidth="20"
+                                        strokeDasharray={`${(performance.overall_score / 100) * 534} 534`}
+                                        strokeLinecap="round"
+                                        style={{ transition: 'stroke-dasharray 1s ease' }}
+                                    />
+                                </svg>
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{ fontSize: '36px', fontWeight: '800', color: performanceLevel.color }}>
+                                        {Number(performance.overall_score).toFixed(0)}
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                                        out of 100
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Performance Rating Badge & Progress Bar */}
+                            <div style={{ flex: '1', minWidth: '280px', maxWidth: '400px' }}>
+                                <div style={{
+                                    display: 'inline-block',
+                                    padding: '12px 32px',
+                                    borderRadius: '50px',
+                                    backgroundColor: performanceLevel.bg,
+                                    color: performanceLevel.color,
+                                    fontSize: '20px',
+                                    fontWeight: '700',
+                                    marginBottom: '20px',
+                                    boxShadow: `0 4px 12px ${performanceLevel.color}33`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px'
+                                }}>
+                                    {performanceLevel.level}
+                                </div>
+                                
+                                {/* Horizontal Progress Bar */}
+                                <div style={{ marginTop: '20px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+                                        <span>0%</span>
+                                        <span>50%</span>
+                                        <span>100%</span>
+                                    </div>
+                                    <div style={{
+                                        width: '100%',
+                                        height: '24px',
+                                        backgroundColor: '#e2e8f0',
+                                        borderRadius: '12px',
+                                        overflow: 'hidden',
+                                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
+                                    }}>
+                                        <div style={{
+                                            width: `${performance.overall_score}%`,
+                                            height: '100%',
+                                            background: `linear-gradient(90deg, ${performanceLevel.color} 0%, ${performanceLevel.color}dd 100%)`,
+                                            borderRadius: '12px',
+                                            transition: 'width 1s ease',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'flex-end',
+                                            paddingRight: '8px',
+                                            color: 'white',
+                                            fontSize: '11px',
+                                            fontWeight: '700'
+                                        }}>
+                                            {Number(performance.overall_score) > 15 && `${Number(performance.overall_score).toFixed(0)}%`}
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Rating Legend */}
+                                    <div style={{ marginTop: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '11px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
+                                            <span style={{ color: '#64748b' }}>Excellent (≥80)</span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#f59e0b' }}></div>
+                                            <span style={{ color: '#64748b' }}>Average (70-79)</span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ef4444' }}></div>
+                                            <span style={{ color: '#64748b' }}>Needs Improvement (&lt;70)</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

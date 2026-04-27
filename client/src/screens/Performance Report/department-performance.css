@@ -70,9 +70,9 @@
 }
 
 .report-table th {
-  background: #eaf1fb;
+  background: #003f88;
   font-weight: bold;
-  color: #1e3a5f;
+  color: white;
   text-align: center;
 }
 
@@ -130,13 +130,21 @@
 .table-container-scroll .report-table {
   margin-top: 0;
   border-radius: 0;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
-.table-container-scroll .report-table thead th {
+.table-container-scroll .report-table thead {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #f1f5f9;
+}
+
+.table-container-scroll .report-table thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background: #003f88 !important;
 }
 
 /* Bottom Buttons */

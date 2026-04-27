@@ -12,6 +12,9 @@ router.get('/my-evaluation', staffController.getMyEvaluation);
 // Staff views performance trend across all cycles
 router.get('/my-evaluation-trend', staffController.getMyEvaluationTrend);
 
+// Line manager views their own performance trend
+router.get('/lm-evaluation-trend', staffController.getLMEvaluationTrend);
+
 // Staff views performance benchmark comparison
 router.get('/performance-benchmark', staffController.getPerformanceBenchmark);
 

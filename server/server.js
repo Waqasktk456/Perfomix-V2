@@ -8,6 +8,9 @@ const employeeRoutes = require('./routes/employeeRoutes');
 const employeesRouter = require('./routes/employees');
 const evaluationsRouter = require('./routes/evaluations');
 const teamrouter = require('./routes/teamRoutes');
+const performanceRatingRoutes = require('./routes/performanceRatingRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 dotenv.config();
 const app = express();
@@ -22,9 +25,11 @@ app.use(bodyParser.urlencoded({ limit: '2mb', extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/employees', employeeRoutes);
-// app.use('/api/employees', employeesRouter); // Duplicate route removed to correct conflict
 app.use('/api/teams', teamrouter);
 app.use('/api/evaluations', evaluationsRouter);
+app.use('/api/performance-ratings', performanceRatingRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Start the server
 app.listen(PORT, () => {

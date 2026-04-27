@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { FaChevronDown } from "react-icons/fa";
 import "./staff-dashboard.css";
 import { Checkbox } from "@mui/material";
 import { Bar, Line, ComposedChart, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LabelList, Cell } from "recharts";
@@ -13,11 +12,12 @@ const StaffDashboard = () => {
   const [chartData, setChartData] = useState([]);
   const [totalScore, setTotalScore] = useState(0);
   const [evaluationId, setEvaluationId] = useState(null);
-  const [showExportOptions, setShowExportOptions] = useState(false);
   const [performance, setPerformance] = useState({ level: 'Loading...', color: '#9E9E9E', bg: '#F5F5F5' });
   const [cycles, setCycles] = useState([]);
   const [selectedCycleId, setSelectedCycleId] = useState(null);
   const [trendData, setTrendData] = useState([]);
+  const [overallFeedback, setOverallFeedback] = useState(null);
+  const [overallRecommendation, setOverallRecommendation] = useState(null);
 
   // Fetch all cycles
   useEffect(() => {
@@ -126,6 +126,8 @@ const StaffDashboard = () => {
           const weightedScores = mapped.map(e => e.weightedScore);
           const total = weightedScores.reduce((acc, curr) => acc + curr, 0);
           setTotalScore(total.toFixed(2));
+          setOverallFeedback(res.data.feedback || null);
+          setOverallRecommendation(res.data.recommendation || null);
 
           setChartData(mapped.map(e => ({
             parameter: e.parameter,
@@ -153,6 +155,8 @@ const StaffDashboard = () => {
         } else {
           setParametersData([]);
           setChartData([]);
+          setOverallFeedback(null);
+          setOverallRecommendation(null);
           setPerformance({ level: 'No Evaluation', color: '#9E9E9E', bg: '#F5F5F5' });
           toast.info('No completed evaluation found for this cycle');
         }
@@ -285,16 +289,10 @@ const StaffDashboard = () => {
         <div className="export-container">
           <button
             className="staff-export-report-btn"
-            onClick={() => setShowExportOptions(!showExportOptions)}
+            onClick={handleExportPDF}
           >
-            Export Report <FaChevronDown />
+            Export Report
           </button>
-          {showExportOptions && (
-            <div className="export-options">
-              <button onClick={handleExportPDF}>Export as PDF</button>
-              <button onClick={exportToCSV}>Export as CSV</button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -305,13 +303,11 @@ const StaffDashboard = () => {
             <th>Weight (%)</th>
             <th>Rating (1-5)</th>
             <th>Score</th>
-            <th>Feedback</th>
-            <th>Recommendations</th>
           </tr>
         </thead>
         <tbody>
           {parametersData.length === 0 ? (
-            <tr><td colSpan="6" style={{ textAlign: 'center' }}>No completed evaluations found.</td></tr>
+            <tr><td colSpan="4" style={{ textAlign: 'center' }}>No completed evaluations found.</td></tr>
           ) : (
             parametersData.map((param, index) => (
               <tr key={index}>
@@ -319,13 +315,29 @@ const StaffDashboard = () => {
                 <td>{param.weightage}%</td>
                 <td>{param.rating}</td>
                 <td>{((Number(param.weightage) / 100) * Number(param.score)).toFixed(2)}</td>
-                <td>{param.feedback || "NA"}</td>
-                <td>{param.recommendation || "NA"}</td>
               </tr>
             ))
           )}
         </tbody>
       </table>
+
+      {/* Feedback & Recommendations 2-column layout */}
+      {parametersData.length > 0 && (
+        <div className="feedback-recommendation-grid">
+          <div className="feedback-rec-column">
+            <div className="feedback-rec-header">Feedback</div>
+            <div className="feedback-rec-row">
+              <span className="feedback-rec-text">{overallFeedback || '-'}</span>
+            </div>
+          </div>
+          <div className="feedback-rec-column">
+            <div className="feedback-rec-header">Recommendations</div>
+            <div className="feedback-rec-row">
+              <span className="feedback-rec-text">{overallRecommendation || '-'}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="staff-chart-section">
         <Checkbox checked={trendline} onChange={() => setTrendline(!trendline)} color="primary" />        <span>Add Trendline</span>

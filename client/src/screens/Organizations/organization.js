@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./organization.css";
-import { DeleteIcon, EditIcon, FilterIcon } from "../../assets";
+import { FilterIcon } from "../../assets";
 import '../../styles/typography.css';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -106,11 +106,10 @@ const Organization = () => {
     setSelectedOrg(organization);
   };
 
-  const handleViewDetails = () => {
-    if (selectedOrg) {
-      navigate('/view-organization', { state: { organization: selectedOrg } });
-    } else {
-      toast.info('Please select an organization first');
+  const handleViewDetails = (org) => {
+    const target = org || selectedOrg;
+    if (target) {
+      navigate('/view-organization', { state: { organization: target } });
     }
   };
 
@@ -141,13 +140,11 @@ const Organization = () => {
       <table className="organization-table">
         <thead>
           <tr>
-            <th>ID</th>
             <th>
               Organization Name <img src={FilterIcon} alt="Filter" className="filter-icon" />
             </th>
             <th>Industry Type</th>
             <th>Company Size</th>
-            <th>Address</th>
             <th>Email</th>
             <th>Website</th>
             <th>Action</th>
@@ -161,11 +158,9 @@ const Organization = () => {
               className={selectedOrg?.id === org.id ? 'selected-row' : ''}
               style={{ cursor: 'pointer' }}
             >
-              <td>{formatField(org.id)}</td>
               <td>{formatField(org.organization_name)}</td>
               <td>{formatField(org.industry_type)}</td>
               <td>{formatField(org.company_size)}</td>
-              <td>{formatField(org.headquarters_location)}</td>
               <td>
                 {org.business_email ? (
                   <a href={`mailto:${org.business_email}`} className="organization-email">
@@ -184,37 +179,32 @@ const Organization = () => {
                   '--'
                 )}
               </td>
-              <td onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={() => handleEdit(org)}
-                  className="organization-icon-button"
-                  aria-label="Edit Organization"
-                >
-                  <img src={EditIcon} alt="Edit" className="organization-icon organization-edit-icon" />
+              <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                <button onClick={() => handleEdit(org)} className="organization-icon-button action-btn-edit" title="Edit Organization">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
                 </button>
-                <span>/</span>
-                <button
-                  onClick={() => handleDelete(org.id)}
-                  className="organization-icon-button"
-                  aria-label="Delete Organization"
-                >
-                  <img src={DeleteIcon} alt="Delete" className="organization-icon organization-delete-icon" />
+                <button onClick={() => handleDelete(org.id)} className="organization-icon-button action-btn-delete" title="Delete Organization">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                  </svg>
+                </button>
+                <button onClick={() => handleViewDetails(org)} className="organization-icon-button action-btn-view" title="View Details">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
                 </button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-
-      <div className="action-buttons" style={{ marginTop: '30px', textAlign: 'right' }}>
-        <button
-          className="view-matrix-btn"
-          onClick={handleViewDetails}
-          disabled={!selectedOrg}
-        >
-          View Details
-        </button>
-      </div>
     </div>
   );
 };

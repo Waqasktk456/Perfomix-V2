@@ -546,6 +546,73 @@ router.get('/by-id/:evaluationId', async (req, res) => {
   }
 });
 
+// Get evaluation for a specific employee in a specific cycle
+router.get('/employee/:empId/cycle/:cycleId', async (req, res) => {
+  try {
+    const { empId, cycleId } = req.params;
+    const orgId = req.user.organizationId;
+
+    // Find the evaluation — only completed ones
+    const [[evalRow]] = await db.query(`
+      SELECT ev.id, ev.overall_score, ev.cycle_id, ev.cycle_team_assignment_id, ev.status
+      FROM evaluations ev
+      WHERE ev.employee_id = ? AND ev.cycle_id = ? AND ev.organization_id = ?
+        AND ev.status = 'completed'
+      ORDER BY ev.id DESC LIMIT 1
+    `, [empId, cycleId, orgId]);
+
+    if (!evalRow) {
+      return res.json({ success: true, evaluations: [], overall_score: 0, evaluation_id: null, cycle_id: cycleId, feedback: null, recommendation: null });
+    }
+
+    // Fetch overall feedback and recommendation from evaluations table
+    const [[evalMeta]] = await db.query(`
+      SELECT comments AS feedback, areas_for_improvement AS recommendation
+      FROM evaluations WHERE id = ?
+    `, [evalRow.id]);
+
+    let rows;
+    if (evalRow.cycle_team_assignment_id) {
+      [rows] = await db.query(`
+        SELECT p.id AS parameter_id, p.parameter_name AS parameter, pmx.weightage,
+          COALESCE(ed.rating, CASE WHEN ed.score > 0 THEN ROUND(ed.score/20) ELSE NULL END) AS rating,
+          COALESCE(ed.score, 0) AS score, 'completed' AS evaluation_status
+        FROM evaluations ev
+        JOIN cycle_team_assignments cta ON ev.cycle_team_assignment_id = cta.id
+        JOIN parameter_matrices pmx ON pmx.matrix_id = cta.matrix_id
+        JOIN parameters p ON pmx.parameter_id = p.id
+        LEFT JOIN evaluation_details ed ON ed.evaluation_id = ev.id AND ed.parameter_id = p.id
+        WHERE ev.id = ? ORDER BY p.parameter_name
+      `, [evalRow.id]);
+    } else {
+      [rows] = await db.query(`
+        SELECT p.id AS parameter_id, p.parameter_name AS parameter, pmx.weightage,
+          COALESCE(ed.rating, CASE WHEN ed.score > 0 THEN ROUND(ed.score/20) ELSE NULL END) AS rating,
+          COALESCE(ed.score, 0) AS score, 'completed' AS evaluation_status
+        FROM evaluations ev
+        JOIN evaluation_cycles ec ON ev.cycle_id = ec.id
+        JOIN parameter_matrices pmx ON pmx.matrix_id = ec.line_manager_matrix_id
+        JOIN parameters p ON pmx.parameter_id = p.id
+        LEFT JOIN evaluation_details ed ON ed.evaluation_id = ev.id AND ed.parameter_id = p.id
+        WHERE ev.id = ? ORDER BY p.parameter_name
+      `, [evalRow.id]);
+    }
+
+    res.json({
+      success: true,
+      evaluation_id: evalRow.id,
+      overall_score: evalRow.overall_score || 0,
+      cycle_id: evalRow.cycle_id,
+      feedback: evalMeta?.feedback || null,
+      recommendation: evalMeta?.recommendation || null,
+      evaluations: rows
+    });
+  } catch (error) {
+    console.error('Error fetching employee cycle evaluation:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch evaluation' });
+  }
+});
+
 // Get count of all pending evaluations (matching performance report logic)
 router.get('/pending/count', async (req, res) => {
   try {
@@ -608,8 +675,9 @@ router.get('/all-status', async (req, res) => {
         e.first_name AS First_name,
         e.last_name AS Last_name,
         e.designation AS Designation,
+        e.email AS Email,
         d.department_name AS Department_name,
-        u.picture AS Profile_image,
+        COALESCE(e.profile_image, u.picture) AS Profile_image,
         t.id AS team_id,
         t.team_name AS Team_name,
         ev.id as id,

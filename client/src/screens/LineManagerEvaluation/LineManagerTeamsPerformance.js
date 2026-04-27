@@ -109,7 +109,7 @@ const LineManagerTeamsPerformance = () => {
     <div className="lm-teams-performance-container">
       {/* Header Section */}
       <div className="lm-teams-performance-header">
-        <button className="back-button" onClick={() => navigate(isAdminView ? '/dashboard' : '/line-manager-evaluation')}>
+        <button className="back-button" onClick={() => navigate(isAdminView ? '/dashboard' : '/linemanager-evaluation', { state: { returnToCycleId: location.state?.cycleId } })}>
           ← Back
         </button>
         <div>
